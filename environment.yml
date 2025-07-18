@@ -1,0 +1,38 @@
+name: polymer-gnn
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - pyg
+dependencies:
+  - python=3.9
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8
+  - rdkit
+  - openbabel
+  - pyg
+  - pandas
+  - numpy
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - plotly
+  - jupyter
+  - notebook
+  - ipywidgets
+  - tqdm
+  - pytest
+  - pytest-cov
+  - pip
+  - pip:
+    - torch-scatter
+    - torch-sparse
+    - torch-cluster
+    - torch-spline-conv
+    - wandb
+    - tensorboard
+    - mordred
+    - bigsmiles 
