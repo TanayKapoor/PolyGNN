@@ -1,192 +1,219 @@
-# Polymer GNN: Graph Neural Networks for Polymer Property Prediction
+# PolyGNN - Polymer Graph Neural Networks
 
-A comprehensive machine learning framework for predicting polymer properties using Graph Neural Networks (GNNs) with BigSMILES polymer notation.
+A comprehensive framework for predicting polymer properties using Graph Neural Networks (GNNs). This project focuses on glass transition temperature (Tg) and free volume fraction (FFV) prediction from polymer molecular structures.
 
-## Features
+## 🚀 Features
 
-- **BigSMILES Parser**: Custom parser for polymer notation with molecular feature extraction
-- **Graph Neural Network Models**: PyTorch Geometric-based models for polymer property prediction
-- **Multi-Task Learning**: Predict multiple polymer properties simultaneously
-- **Comprehensive Environment**: Pre-configured conda environment with all necessary dependencies
-- **GPU Support**: CUDA-enabled for accelerated training and inference
+- **Real Polymer Dataset**: 7,973 polymer structures with multiple properties
+- **SMILES to Graph Conversion**: Automated molecular graph generation from SMILES strings
+- **Multi-property Prediction**: Support for Tg, FFV, and other polymer properties
+- **Data Quality Assessment**: Comprehensive preprocessing and validation
+- **PyTorch Geometric Integration**: Built on modern GNN libraries
+- **Modular Architecture**: Clean, extensible codebase
 
-## Quick Start
+## 📊 Dataset Statistics
 
-### 1. Environment Setup
+| Property | Samples | Range | Quality |
+|----------|---------|--------|---------|
+| Glass Transition Temperature (Tg) | 510 | -148.03°C to 472.25°C | 93.5% valid |
+| Free Volume Fraction (FFV) | 7,029 | 0.23 to 0.78 | 100% valid |
 
-Choose one of the following methods:
+## 🛠️ Installation
 
-#### Option A: Using the setup script (Recommended)
+### Prerequisites
+- Python 3.9+
+- Conda (recommended)
+
+### Option 1: Conda Environment (Recommended)
 ```bash
+# Clone the repository
+git clone https://github.com/user/polygnn.git
+cd polygnn
+
+# Create and activate conda environment
 chmod +x setup_conda_env.sh
 ./setup_conda_env.sh
+conda activate polymer-gnn
+
+# Install the package
+pip install -e .
 ```
 
-#### Option B: Using environment.yml
+### Option 2: Pip Installation
 ```bash
-conda env create -f environment.yml
-conda activate polymer-gnn
-```
-
-#### Option C: Manual setup
-```bash
-conda create -n polymer-gnn python=3.9 -y
-conda activate polymer-gnn
+# Install requirements
 pip install -r requirements.txt
+
+# Install the package
+pip install -e .
 ```
 
-### 2. Verify Installation
+## 🔧 Quick Start
 
+### 1. Dataset Setup
 ```bash
-conda activate polymer-gnn
-python verify_conda_setup.py
+# Process polymer dataset for Tg prediction
+python dataset_setup.py --target_property Tg
+
+# Process dataset for FFV prediction
+python dataset_setup.py --target_property FFV
+
+# Multi-target setup
+python dataset_setup.py --multi_target
 ```
 
-### 3. Setup Datasets
-
-```bash
-python dataset_setup.py
-```
-
-### 4. Test BigSMILES Parser
-
-```bash
-python src/data/bigsmiles_parser.py
-```
-
-## Project Structure
-
-```
-polymer-gnn/
-├── src/                    # Source code
-│   ├── data/              # Data processing modules
-│   │   ├── bigsmiles_parser.py
-│   │   ├── data_loader.py
-│   │   └── preprocessing.py
-│   ├── models/            # Model implementations
-│   │   ├── polymer_gnn.py
-│   │   └── multi_task_model.py
-│   ├── training/          # Training utilities
-│   │   ├── trainer.py
-│   │   └── utils.py
-│   └── evaluation/        # Evaluation metrics
-│       └── metrics.py
-├── data/                  # Data storage
-│   ├── raw/              # Raw datasets
-│   ├── processed/        # Processed datasets
-│   ├── external/         # External datasets
-│   └── interim/          # Intermediate data
-├── notebooks/            # Jupyter notebooks
-├── tests/               # Unit tests
-├── models/              # Trained models
-├── results/             # Results and outputs
-├── docs/                # Documentation
-├── environment.yml      # Conda environment
-├── requirements.txt     # Python dependencies
-├── setup_conda_env.sh   # Environment setup script
-├── verify_conda_setup.py # Verification script
-├── dataset_setup.py     # Dataset setup script
-└── README.md           # This file
-```
-
-## BigSMILES Parser
-
-The BigSMILES parser handles extended SMILES notation for polymers:
-
+### 2. Basic Usage
 ```python
-from src.data.bigsmiles_parser import BigSMILESParser
+from src.data import PolymerTgDataset, MolecularGraphConverter
 
-parser = BigSMILESParser()
+# Load dataset
+dataset = PolymerTgDataset(
+    root='./data/processed',
+    csv_file='data/processed/filtered_tg_dataset.csv',
+    smiles_column='processed_smiles',
+    target_column='Tg',
+    split_type='train'
+)
 
-# Parse polyethylene
-result = parser.parse_bigsmiles("CC{[CH2][CH2]}CC")
-print(f"Repeat units: {result['repeat_units']}")
-print(f"Molecular weight: {result['avg_repeat_mw']}")
+# Convert SMILES to graph
+converter = MolecularGraphConverter()
+graph = converter.smiles_to_graph('CCO')  # Ethanol
+
+print(f"Nodes: {graph.num_nodes}")
+print(f"Edges: {graph.edge_index.shape[1]}")
 ```
 
-## Environment Requirements
+### 3. Data Loading
+```python
+from torch_geometric.data import DataLoader
 
-### Hardware Requirements
-- **GPU**: NVIDIA GPU with CUDA support (recommended)
-- **RAM**: 8GB+ (16GB+ recommended)
-- **Storage**: 10GB+ free space
+# Create data loader
+train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
-### Software Requirements
-- **Python**: 3.9+
-- **CUDA**: 11.8+ (for GPU support)
-- **Conda**: Latest version
-
-## GPU Configuration
-
-Check your GPU setup:
-```bash
-nvidia-smi
-python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+# Iterate through batches
+for batch in train_loader:
+    print(f"Batch size: {batch.batch.max().item() + 1}")
+    print(f"Total nodes: {batch.x.shape[0]}")
+    print(f"Total edges: {batch.edge_index.shape[1]}")
+    break
 ```
 
-## Development
+## 📁 Project Structure
+
+```
+polygnn/
+├── src/                           # Core source code
+│   ├── data/                      # Data processing modules
+│   │   ├── bigsmiles_parser.py    # BigSMILES parsing utilities
+│   │   ├── molecular_graph.py     # SMILES to graph conversion
+│   │   └── polymer_dataset.py     # Dataset class and utilities
+│   ├── models/                    # GNN model implementations
+│   ├── training/                  # Training utilities
+│   └── evaluation/                # Evaluation metrics and visualization
+├── data/                          # Data files
+│   ├── raw/                       # Raw dataset files
+│   ├── processed/                 # Processed datasets
+│   ├── external/                  # External datasets
+│   └── interim/                   # Intermediate processing files
+├── notebooks/                     # Jupyter notebooks
+├── docs/                          # Documentation
+├── tests/                         # Unit tests
+├── models/                        # Trained model files
+├── results/                       # Experiment results
+├── dataset_setup.py               # Dataset processing script
+├── environment.yml                # Conda environment
+├── requirements.txt               # Python dependencies
+└── setup.py                       # Package installation
+```
+
+## 🔬 Data Processing
+
+The framework handles polymer repeat units with connection points (`*`) and provides:
+
+1. **SMILES Preprocessing**: Removes connection points and validates structures
+2. **Graph Conversion**: Creates molecular graphs with node and edge features
+3. **Quality Assessment**: Comprehensive data validation and reporting
+4. **Train/Val/Test Splits**: Automated 70/15/15 data splitting
+
+## 🧪 Molecular Features
+
+- **Node Features**: 157-dimensional atom descriptors
+- **Edge Features**: 14-dimensional bond descriptors
+- **Molecular Features**: 13-dimensional molecular descriptors
+- **Graph Size**: Up to 300 atoms supported
+
+## 🎯 Supported Properties
+
+- **Tg**: Glass transition temperature (°C)
+- **FFV**: Free volume fraction (dimensionless)
+- **Tc**: Critical temperature (°C)
+- **Density**: Polymer density (g/cm³)
+- **Rg**: Radius of gyration (Å)
+
+## 🏗️ Development
 
 ### Running Tests
 ```bash
-pytest tests/
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/ -v
 ```
 
-### Code Style
-We follow PEP 8 style guidelines. Run linting with:
+### Code Quality
 ```bash
-flake8 src/
+# Format code
+black src/ tests/
+
+# Check imports
+isort src/ tests/
+
+# Lint code
+flake8 src/ tests/
 ```
 
-### Adding New Models
-1. Create model file in `src/models/`
-2. Add imports to `src/models/__init__.py`
-3. Add tests in `tests/`
+## 📈 Performance
 
-## Datasets
+The framework is optimized for:
+- **Memory efficiency**: Handles large datasets (7K+ samples)
+- **Fast processing**: Batch processing and GPU support
+- **Scalability**: Modular design for easy extension
 
-### NeurIPS 2025 Polymer Dataset
-- **Source**: Competition dataset
-- **Format**: CSV with BigSMILES notation
-- **Properties**: Glass transition temperature, melting temperature, density, etc.
+## 🤝 Contributing
 
-### External Datasets
-- Polymer property databases
-- Literature data
-- Experimental measurements
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Citation
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- RDKit for molecular processing
+- PyTorch Geometric for GNN framework
+- The polymer science community for datasets and insights
+
+## 📚 Citation
+
+If you use this work in your research, please cite:
 
 ```bibtex
-@software{polymer_gnn,
-  title={Polymer GNN: Graph Neural Networks for Polymer Property Prediction},
-  author={Your Name},
+@software{polygnn2024,
+  title={PolyGNN: Graph Neural Networks for Polymer Property Prediction},
+  author={PolyGNN Development Team},
   year={2024},
-  url={https://github.com/yourusername/polymer-gnn}
+  url={https://github.com/user/polygnn}
 }
 ```
 
-## License
+## 🔗 Links
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-## Support
-
-For questions and support:
-- Create an issue on GitHub
-- Email: your.email@example.com
-
-## Changelog
-
-### v0.1.0
-- Initial release
-- BigSMILES parser implementation
-- Environment setup scripts
-- Basic project structure 
+- [Documentation](./docs/)
+- [Dataset Information](./data/README.md)
+- [Jupyter Notebooks](./notebooks/)
+- [Issue Tracker](https://github.com/user/polygnn/issues) 
