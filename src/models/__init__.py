@@ -1,9 +1,8 @@
 """
-Model implementations for polymer GNN
+GNN models for polymer property prediction
 """
 
-# Import models here when they are implemented
-# from .polymer_gnn import PolymerGNN
-# from .multi_task_model import MultiTaskModel
+# Model imports will be added here as they are implemented
+# from .gnn_models import PolymerGNN, GraphAttentionNet
 
 __all__ = [] 
