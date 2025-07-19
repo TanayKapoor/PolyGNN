@@ -355,7 +355,9 @@ class PolymerTgDataset(Dataset):
             graph = Data(
                 x=torch.zeros(1, self.graph_converter.atom_feature_dim),
                 edge_index=torch.zeros(2, 0, dtype=torch.long),
-                num_nodes=1
+                num_nodes=1,
+                mol_features=torch.zeros(13, dtype=torch.float),  # Match molecular feature dim
+                smiles=smiles
             )
         
         # Add target value
