@@ -2,8 +2,10 @@
 Training utilities for polymer GNN models
 """
 
-# Training imports will be added here as they are implemented
-# from .trainer import PolymerTrainer
-# from .utils import setup_training, save_checkpoint
+from .trainer import PolymerBaselineTrainer
+from .gcn_trainer import PolymerGCNTrainer
 
-__all__ = [] 
+__all__ = [
+    'PolymerBaselineTrainer',
+    'PolymerGCNTrainer'
+] 
