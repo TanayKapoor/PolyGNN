@@ -1,0 +1,189 @@
+# Polymer Fingerprint Baseline Configuration
+# Glass Transition Temperature (Tg) Prediction from Polymer SMILES
+
+# Experiment metadata
+experiment:
+  name: "tg_fingerprint_baseline"
+  description: "Baseline model for Tg prediction using molecular fingerprints + polymer chain features"
+  target_property: "Tg"
+  random_seed: 42
+
+# Data configuration
+data:
+  # Dataset paths
+  dataset_path: "data/processed/filtered_tg_dataset.csv"
+  smiles_column: "processed_smiles"
+  target_column: "Tg"
+  
+  # Data preprocessing
+  target_transform:
+    enabled: true
+    method: "clip"  # clip outliers
+    clip_min: -150.0  # °C
+    clip_max: 500.0   # °C
+    
+  # Train/validation/test splits
+  splits:
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
+    stratify: false
+    shuffle: true
+
+# Feature extraction
+features:
+  # Molecular fingerprints
+  fingerprint:
+    type: "morgan"  # morgan, maccs, or topological
+    radius: 2
+    n_bits: 2048
+    use_features: true
+    use_chirality: true
+    
+  # Polymer chain features
+  chain_features:
+    enabled: true
+    features:
+      - "num_atoms"
+      - "num_bonds" 
+      - "molecular_weight"
+      - "logp"
+      - "rotatable_bonds"
+      - "ring_count"
+      - "aromatic_rings"
+      - "fraction_csp3"
+      - "hbd_count"
+      - "hba_count"
+    normalize: true  # standardize chain features
+
+# Model architecture
+model:
+  type: "PolymerFingerprintBaseline"
+  
+  # Input dimensions
+  fingerprint_dim: 2048
+  chain_features_dim: 10
+  
+  # Neural network architecture
+  hidden_dims: [512, 256, 128]
+  dropout_rate: 0.2
+  activation: "relu"  # relu, gelu, tanh
+  
+  # Output
+  output_dim: 1  # single Tg prediction
+
+# Training configuration
+training:
+  # Basic training parameters
+  batch_size: 32
+  epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  
+  # Optimization
+  optimizer: "adam"  # adam, sgd, rmsprop
+  scheduler: "reduce_on_plateau"
+  scheduler_params:
+    mode: "min"
+    factor: 0.5
+    patience: 5
+    min_lr: 0.000001
+    
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 10
+    monitor: "val_loss"
+    mode: "min"
+    
+  # Loss function
+  loss_function: "mse"  # mse, mae, huber
+  
+  # Device
+  device: "auto"  # auto, cuda, cpu
+
+# Cross-validation
+cross_validation:
+  enabled: true
+  n_folds: 5
+  shuffle: true
+  random_state: 42
+  
+  # Training parameters for CV (can override training config)
+  epochs: 50  # fewer epochs for faster CV
+  patience: 8
+
+# Evaluation metrics
+metrics:
+  regression:
+    - "rmse"
+    - "mae"
+    - "r2"
+    - "mse"
+    
+  # Additional polymer-specific metrics
+  chemistry:
+    - "mean_absolute_percentage_error"
+    - "explained_variance"
+
+# Results and logging
+results:
+  save_dir: "results"
+  model_name: "tg_fingerprint_baseline"
+  
+  # What to save
+  save_model: true
+  save_predictions: true
+  save_features: false  # can be large
+  save_plots: true
+  
+  # Logging
+  log_level: "INFO"
+  log_file: "tg_baseline_training.log"
+  
+  # Visualization
+  plots:
+    training_curves: true
+    prediction_scatter: true
+    residuals_plot: true
+    feature_importance: false  # not applicable for fingerprints
+
+# Reproducibility
+reproducibility:
+  deterministic: true
+  benchmark: false  # set to true for consistent performance measurement
+
+# Quick mode (for testing)
+quick_mode:
+  enabled: false  # override with --quick flag
+  max_samples: 100
+  epochs: 5
+  cv_folds: 2
+
+# Performance monitoring
+monitoring:
+  # Memory and time tracking
+  track_memory: true
+  track_time: true
+  
+  # Target performance thresholds
+  success_criteria:
+    min_r2: 0.5
+    max_rmse: 50.0  # °C
+    max_mae: 30.0   # °C
+
+# Advanced options
+advanced:
+  # Gradient clipping
+  grad_clip_norm: null  # set to float value to enable
+  
+  # Mixed precision training
+  mixed_precision: false
+  
+  # Model averaging
+  model_averaging: false
+  
+  # Feature scaling
+  feature_scaling:
+    fingerprints: false  # binary features don't need scaling
+    chain_features: true  # continuous features benefit from scaling 

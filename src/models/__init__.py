@@ -2,7 +2,22 @@
 GNN models for polymer property prediction
 """
 
-# Model imports will be added here as they are implemented
-# from .gnn_models import PolymerGNN, GraphAttentionNet
+from .polymer_baseline import (
+    PolymerFingerprintBaseline,
+    PolymerFeatureExtractor, 
+    PolymerFingerprintDataset,
+    create_baseline_model_and_extractor
+)
 
-__all__ = [] 
+from .polymer_gcn import (
+    PolymerGCN,
+    PolymerGCNDataset,
+    create_gcn_model_from_config
+)
+
+__all__ = [
+    'PolymerFingerprintBaseline',
+    'PolymerFeatureExtractor',
+    'PolymerFingerprintDataset', 
+    'create_baseline_model_and_extractor'
+] 
