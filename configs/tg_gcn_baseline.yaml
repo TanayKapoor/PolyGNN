@@ -1,0 +1,108 @@
+# Glass Transition Temperature (Tg) Prediction - GCN Baseline Configuration
+# Configuration for Graph Convolutional Network baseline model
+
+experiment:
+  name: "tg_gcn_baseline"
+  description: "Simple GCN baseline for polymer Tg prediction using molecular graphs"
+  random_seed: 42
+
+# Dataset configuration
+data:
+  dataset_path: "data/processed/filtered_tg_dataset.csv"
+  smiles_column: "processed_smiles"
+  target_column: "Tg"
+  
+  # Data splits
+  splits:
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
+    shuffle: true
+  
+  # Target value processing
+  target_transform:
+    enabled: true
+    method: "clip"  # clip, log, normalize
+    clip_min: -200  # Minimum Tg value (°C)
+    clip_max: 500   # Maximum Tg value (°C)
+
+# Graph conversion settings
+graph:
+  max_atoms: 200
+  include_hydrogens: false
+  use_chirality: true
+  use_bond_types: false
+
+# Model architecture
+model:
+  type: "gcn"
+  
+  # GCN specific parameters
+  node_feature_dim: 157  # Calculated from MolecularGraphConverter
+  molecular_feature_dim: 13
+  num_gcn_layers: 3
+  hidden_dims: [128, 64, 32]  # Hidden dimensions for final MLP
+  dropout_rate: 0.2
+  pooling_method: "mean"  # mean, max, sum
+  use_molecular_features: true
+  activation: "relu"  # relu, gelu, tanh
+
+# Training parameters
+training:
+  device: "auto"  # auto, cuda, cpu
+  batch_size: 32
+  epochs: 100
+  learning_rate: 0.001
+  weight_decay: 1e-4
+  
+  # Early stopping
+  early_stopping:
+    patience: 10
+    min_delta: 1e-4
+
+# Cross-validation settings
+cross_validation:
+  enabled: false
+  n_folds: 5
+  epochs: 80
+  patience: 8
+
+# Results and logging
+results:
+  save_dir: "results"
+  model_name: "tg_gcn_baseline"
+  log_level: "INFO"
+  log_file: null
+
+# Advanced options
+advanced:
+  # Feature scaling
+  feature_scaling:
+    node_features: false
+    molecular_features: true
+  
+  # Data augmentation
+  data_augmentation:
+    enabled: false
+    methods: []
+
+# Quick mode for testing
+quick_mode:
+  enabled: false
+  max_samples: 100
+  epochs: 10
+  cv_folds: 3
+
+# Success criteria for model evaluation
+monitoring:
+  success_criteria:
+    min_r2: 0.5      # Minimum R² score
+    max_rmse: 50.0   # Maximum RMSE (°C)
+    max_mae: 30.0    # Maximum MAE (°C)
+  
+  # Metrics to track
+  metrics:
+    - "r2"
+    - "rmse" 
+    - "mae"
+    - "loss" 

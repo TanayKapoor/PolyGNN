@@ -93,14 +93,19 @@ class MolecularGraphConverter:
             mol_features = self._get_molecular_features(mol)
             
             # Create PyTorch Geometric Data object
-            data = Data(
-                x=torch.tensor(atom_features, dtype=torch.float),
-                edge_index=torch.tensor(edge_index, dtype=torch.long),
-                edge_attr=torch.tensor(edge_attr, dtype=torch.float) if edge_attr is not None else None,
-                num_nodes=mol.GetNumAtoms(),
-                smiles=smiles,
-                mol_features=torch.tensor(mol_features, dtype=torch.float)
-            )
+            data_dict = {
+                'x': torch.tensor(atom_features, dtype=torch.float),
+                'edge_index': torch.tensor(edge_index, dtype=torch.long),
+                'num_nodes': mol.GetNumAtoms(),
+                'smiles': smiles,
+                'mol_features': torch.tensor(mol_features, dtype=torch.float)
+            }
+            
+            # Only add edge_attr if we have bond features
+            if edge_attr is not None:
+                data_dict['edge_attr'] = torch.tensor(edge_attr, dtype=torch.float)
+            
+            data = Data(**data_dict)
             
             return data
             
