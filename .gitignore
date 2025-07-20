@@ -167,4 +167,19 @@ wandb/
 
 # TensorBoard
 tensorboard/
-runs/ 
+runs/
+
+# Debug and temporary scripts
+debug_*.py
+*_debug.py
+data_cleaner.py
+*_temp.py
+*_test.py
+test_*.py
+temp_*.py
+
+# HTML exports of notebooks
+notebooks/*.html
+
+# Multiple analysis files (keep only latest)
+analysis_summary_*.json

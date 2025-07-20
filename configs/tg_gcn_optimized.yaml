@@ -1,0 +1,108 @@
+# Glass Transition Temperature (Tg) Prediction - Optimized GCN Configuration
+# Configuration for optimized Graph Convolutional Network model based on diagnostic insights
+
+experiment:
+  name: "tg_gcn_optimized"
+  description: "Optimized GCN model for polymer Tg prediction using cleaned data and tuned hyperparameters"
+  random_seed: 42
+
+# Dataset configuration - UPDATED to use cleaned data
+data:
+  dataset_path: "data/processed/cleaned_tg_dataset.csv"  # ✓ Use cleaned version
+  smiles_column: "cleaned_smiles"                        # ✓ Use cleaned column
+  target_column: "Tg"
+  
+  # Data splits
+  splits:
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
+    shuffle: true
+  
+  # Target value processing
+  target_transform:
+    enabled: true
+    method: "clip"  # clip, log, normalize
+    clip_min: -200  # Minimum Tg value (°C)
+    clip_max: 500   # Maximum Tg value (°C)
+
+# Graph conversion settings
+graph:
+  max_atoms: 200
+  include_hydrogens: false
+  use_chirality: true
+  use_bond_types: false
+
+# Model architecture - OPTIMIZED based on diagnostic insights
+model:
+  type: "gcn"
+  
+  # GCN specific parameters
+  node_feature_dim: 157  # From MolecularGraphConverter diagnostics
+  molecular_feature_dim: 13
+  num_gcn_layers: 3
+  hidden_dims: [256, 128, 64]  # Slightly larger hidden dimensions
+  dropout_rate: 0.3            # Increased dropout for better regularization
+  pooling_method: "mean"       # mean pooling works well for molecular data
+  use_molecular_features: true
+  activation: "relu"
+
+# Training parameters - OPTIMIZED hyperparameters
+training:
+  device: "auto"  # auto, cuda, cpu
+  batch_size: 32
+  learning_rate: 0.0005        # ✓ Reduced from 0.001 for better stability
+  epochs: 100                  # Keep sufficient epochs for convergence
+  weight_decay: 0.0001         # Add regularization
+  
+  # Early stopping - more patient for optimized model
+  early_stopping:
+    patience: 15               # Increased patience
+    min_delta: 1e-4
+
+# Cross-validation settings
+cross_validation:
+  enabled: false
+  n_folds: 5
+  epochs: 80
+  patience: 12
+
+# Results and logging
+results:
+  save_dir: "results"
+  model_name: "tg_gcn_optimized"
+  log_level: "INFO"
+  log_file: null
+
+# Advanced options
+advanced:
+  # Feature scaling
+  feature_scaling:
+    node_features: false
+    molecular_features: true
+  
+  # Data augmentation
+  data_augmentation:
+    enabled: false
+    methods: []
+
+# Quick mode for testing
+quick_mode:
+  enabled: false
+  max_samples: 100
+  epochs: 10
+  cv_folds: 3
+
+# Success criteria for model evaluation
+monitoring:
+  success_criteria:
+    min_r2: 0.6      # Higher target for optimized model
+    max_rmse: 40.0   # Tighter RMSE target
+    max_mae: 25.0    # Tighter MAE target
+  
+  # Metrics to track
+  metrics:
+    - "r2"
+    - "rmse" 
+    - "mae"
+    - "loss" 
