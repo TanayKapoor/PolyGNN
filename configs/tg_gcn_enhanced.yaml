@@ -1,0 +1,117 @@
+# Glass Transition Temperature (Tg) Prediction - Enhanced GCN Configuration
+# Configuration for GCN model with polymer-specific features
+
+experiment:
+  name: "tg_gcn_enhanced"
+  description: "Enhanced GCN with polymer features for polymer Tg prediction"
+  random_seed: 42
+
+# Dataset configuration
+data:
+  dataset_path: "data/processed/filtered_tg_dataset.csv"  # Or your custom CSV
+  smiles_column: "processed_smiles"  # Or "smiles" 
+  target_column: "Tg"                # Or "tg"
+  dp_column: "dp"                    # Optional: degree of polymerization column
+  mw_column: "mw"                    # Optional: molecular weight column
+  
+  # Data splits
+  splits:
+    train_ratio: 0.7
+    val_ratio: 0.15
+    test_ratio: 0.15
+    shuffle: true
+  
+  # Target value processing
+  target_transform:
+    enabled: true
+    method: "clip"
+    clip_min: -200
+    clip_max: 500
+
+# Graph conversion settings
+graph:
+  max_atoms: 200
+  include_hydrogens: false
+  use_chirality: true
+  use_bond_types: false
+
+# Model architecture
+model:
+  type: "gcn"
+  
+  # GCN specific parameters
+  node_feature_dim: 157
+  molecular_feature_dim: 13
+  num_gcn_layers: 3
+  hidden_dims: [128, 64, 32]
+  dropout_rate: 0.2
+  pooling_method: "mean"
+  use_molecular_features: true
+  use_polymer_features: true    # ENHANCED: Enable polymer features
+  polymer_feature_dim: 130
+  activation: "relu"
+
+# Training parameters
+training:
+  device: "auto"
+  batch_size: 32
+  epochs: 100
+  learning_rate: 0.001
+  weight_decay: 1e-4
+  
+  # Early stopping
+  early_stopping:
+    patience: 15
+    min_delta: 1e-4
+
+# Cross-validation settings
+cross_validation:
+  enabled: false
+  n_folds: 5
+  epochs: 80
+  patience: 8
+
+# Results and logging
+results:
+  save_dir: "results"
+  model_name: "tg_gcn_enhanced"
+  log_level: "INFO"
+  log_file: null
+
+# Polymer-specific features (ENHANCED)
+polymer_features:
+  fingerprint_size: 128
+  fp_radius: 2
+  log_scale_dp: true
+  max_dp: 10000
+  cache_features: false
+
+# Advanced options
+advanced:
+  feature_scaling:
+    node_features: false
+    molecular_features: true
+  
+  data_augmentation:
+    enabled: false
+    methods: []
+
+# Quick mode for testing
+quick_mode:
+  enabled: false
+  max_samples: 100
+  epochs: 10
+  cv_folds: 3
+
+# Success criteria
+monitoring:
+  success_criteria:
+    min_r2: 0.5
+    max_rmse: 50.0
+    max_mae: 30.0
+  
+  metrics:
+    - "r2"
+    - "rmse" 
+    - "mae"
+    - "loss" 

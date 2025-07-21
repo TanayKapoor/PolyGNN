@@ -1,0 +1,56 @@
+# Enhanced PolyGNN Configuration with ALL New Polymer Features
+# Total features: 147 (130 core + 17 new polymer-specific features)
+
+model:
+  name: "PolymerGCN_Enhanced_Full"
+  
+  # Graph Neural Network Architecture
+  hidden_dims: [256, 128, 64]
+  num_gcn_layers: 4
+  dropout: 0.3
+  activation: "relu"
+  
+  # Enhanced Polymer Features (ALL NEW FEATURES ENABLED)
+  use_polymer_features: true
+  polymer_feature_dim: 147  # ENHANCED: 130 -> 147 features
+  
+  # Polymer Feature Configuration
+  polymer_features:
+    fingerprint_size: 128
+    fp_radius: 2
+    log_scale_dp: true
+    include_chain_descriptors: true      # 🆕 NEW: +5 features
+    include_complexity: true             # 🆕 NEW: +6 features  
+    include_molecular_descriptors: true  # 🆕 NEW: +6 features
+    cache_features: true
+
+# Training Configuration  
+training:
+  epochs: 100
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 1e-4
+  patience: 15
+  device: "auto"
+
+# Data Configuration
+data:
+  csv_file: "data/processed/filtered_tg_dataset.csv"
+  split_ratios: [0.8, 0.1, 0.1]
+  smiles_column: "SMILES"
+  target_column: "Tg"
+  dp_column: "DP"  # Optional but recommended
+  mw_column: "MW"  # Optional but recommended
+
+# Results and Logging
+results:
+  save_dir: "results/enhanced_full_features"
+  save_model: true
+  save_predictions: true
+  save_training_curves: true
+
+# Enhanced Feature Analysis
+analysis:
+  feature_importance: true
+  feature_groups: true  # Analyze new feature categories
+  save_feature_analysis: true 
