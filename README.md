@@ -7,8 +7,10 @@ A comprehensive framework for predicting polymer properties using Graph Neural N
 - **Real Polymer Dataset**: 7,973 polymer structures with multiple properties
 - **SMILES to Graph Conversion**: Automated molecular graph generation from SMILES strings
 - **Multi-property Prediction**: Support for Tg, FFV, and other polymer properties
+- **Advanced Polymer Features**: 147 polymer-specific features including molecular weight, degree of polymerization, and structural complexity
 - **Data Quality Assessment**: Comprehensive preprocessing and validation
 - **PyTorch Geometric Integration**: Built on modern GNN libraries
+- **Hyperparameter Optimization**: Built-in HPO system with advanced configurations
 - **Modular Architecture**: Clean, extensible codebase
 
 ## 📊 Dataset Statistics
