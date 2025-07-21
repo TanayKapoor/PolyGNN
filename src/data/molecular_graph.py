@@ -275,44 +275,4 @@ class MolecularGraphConverter:
         }
 
 
-# Example usage and testing
-def test_molecular_graph_converter():
-    """Test the molecular graph converter with various molecules."""
-    converter = MolecularGraphConverter()
-    
-    # Test molecules
-    test_smiles = [
-        "CCO",  # Ethanol
-        "c1ccccc1",  # Benzene
-        "CC(=O)O",  # Acetic acid
-        "CCCCCCCCCC",  # Decane (polymer-like)
-        "CC(C)(C)c1ccc(cc1)C(C)(C)C",  # Branched aromatic
-    ]
-    
-    print("Testing Molecular Graph Converter")
-    print("=" * 50)
-    
-    for i, smiles in enumerate(test_smiles):
-        print(f"\n--- Test {i+1}: {smiles} ---")
-        graph = converter.smiles_to_graph(smiles)
-        
-        if graph is not None:
-            print(f"✅ Successfully converted")
-            print(f"  Nodes: {graph.num_nodes}")
-            print(f"  Edges: {graph.edge_index.shape[1]}")
-            print(f"  Node features shape: {graph.x.shape}")
-            print(f"  Molecular features shape: {graph.mol_features.shape}")
-            if graph.edge_attr is not None:
-                print(f"  Edge features shape: {graph.edge_attr.shape}")
-        else:
-            print(f"❌ Failed to convert")
-    
-    # Print feature dimensions
-    print(f"\nFeature dimensions:")
-    dims = converter.get_feature_dims()
-    for key, value in dims.items():
-        print(f"  {key}: {value}")
-
-
-if __name__ == "__main__":
-    test_molecular_graph_converter() 
+ 

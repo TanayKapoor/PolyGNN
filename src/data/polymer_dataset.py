@@ -11,6 +11,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 from .molecular_graph import MolecularGraphConverter
+from ..features.polymer_features import PolymerFeatureExtractor, PolymerFeatureError
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +27,12 @@ class PolymerTgDataset(Dataset):
                  csv_file: Optional[str] = None,
                  smiles_column: str = 'smiles',
                  target_column: str = 'tg',
+                 dp_column: Optional[str] = 'dp',
+                 mw_column: Optional[str] = 'mw', 
                  split_type: str = 'train',
                  split_ratios: Tuple[float, float, float] = (0.7, 0.15, 0.15),
                  graph_converter_kwargs: Optional[Dict] = None,
+                 polymer_feature_kwargs: Optional[Dict] = None,
                  transform=None,
                  pre_transform=None,
                  random_state: int = 42):
@@ -40,9 +44,12 @@ class PolymerTgDataset(Dataset):
             csv_file: Path to CSV file with SMILES and Tg data
             smiles_column: Column name containing SMILES strings
             target_column: Column name containing Tg values
+            dp_column: Column name containing degree of polymerization (optional)
+            mw_column: Column name containing molecular weight (optional)
             split_type: 'train', 'val', 'test', or 'all'
             split_ratios: (train, val, test) ratios
             graph_converter_kwargs: Arguments for MolecularGraphConverter
+            polymer_feature_kwargs: Arguments for PolymerFeatureExtractor
             transform: Optional transform to apply to data
             pre_transform: Optional pre-transform to apply to data
             random_state: Random seed for reproducibility
@@ -50,6 +57,8 @@ class PolymerTgDataset(Dataset):
         self.csv_file = csv_file
         self.smiles_column = smiles_column
         self.target_column = target_column
+        self.dp_column = dp_column
+        self.mw_column = mw_column
         self.split_type = split_type
         self.split_ratios = split_ratios
         self.random_state = random_state
@@ -57,6 +66,15 @@ class PolymerTgDataset(Dataset):
         # Initialize graph converter
         graph_kwargs = graph_converter_kwargs or {}
         self.graph_converter = MolecularGraphConverter(**graph_kwargs)
+        
+        # Initialize polymer feature extractor only if polymer features are requested
+        self.use_polymer_features = polymer_feature_kwargs is not None
+        if self.use_polymer_features:
+            self.polymer_extractor = PolymerFeatureExtractor(**polymer_feature_kwargs)
+            logger.info(f"Polymer features enabled with dimension {self.polymer_extractor.get_feature_dim()}")
+        else:
+            self.polymer_extractor = None
+            logger.info("Polymer features disabled")
         
         # Dataset metadata
         self.data_info = {}
@@ -88,11 +106,18 @@ class PolymerTgDataset(Dataset):
         df = df.dropna(subset=[self.smiles_column, self.target_column])
         logger.info(f"Removed {initial_len - len(df)} rows with missing values")
         
+        # Check for polymer feature columns
+        has_dp = self.dp_column and self.dp_column in df.columns
+        has_mw = self.mw_column and self.mw_column in df.columns
+        
         # Store full dataset info
         self.data_info = {
             'total_samples': len(df),
             'smiles_column': self.smiles_column,
             'target_column': self.target_column,
+            'dp_column': self.dp_column if has_dp else None,
+            'mw_column': self.mw_column if has_mw else None,
+            'has_polymer_features': has_dp or has_mw,
             'split_ratios': self.split_ratios,
             'random_state': self.random_state
         }
@@ -145,6 +170,9 @@ class PolymerTgDataset(Dataset):
         
         # Molecular property analysis
         self._analyze_molecular_properties(df)
+        
+        # Polymer feature analysis
+        self._analyze_polymer_features(df)
         
         # Outlier detection
         self._detect_outliers(df)
@@ -204,6 +232,69 @@ class PolymerTgDataset(Dataset):
                 'max': float(np.nanmax(num_bonds))
             }
         }
+        
+    def _analyze_polymer_features(self, df: pd.DataFrame):
+        """Analyze polymer-specific features like DP and molecular weight."""
+        if not self.use_polymer_features:
+            logger.info("Polymer features disabled - skipping polymer feature analysis")
+            return
+            
+        logger.info("Analyzing polymer features...")
+        
+        polymer_stats = {}
+        
+        # Analyze degree of polymerization if available
+        if self.dp_column and self.dp_column in df.columns:
+            dp_values = df[self.dp_column].dropna()
+            if len(dp_values) > 0:
+                polymer_stats['degree_polymerization'] = {
+                    'count': len(dp_values),
+                    'coverage': (len(dp_values) / len(df)) * 100,
+                    'mean': float(np.mean(dp_values)),
+                    'std': float(np.std(dp_values)),
+                    'min': float(np.min(dp_values)),
+                    'max': float(np.max(dp_values)),
+                    'median': float(np.median(dp_values))
+                }
+        
+        # Analyze molecular weight if available
+        if self.mw_column and self.mw_column in df.columns:
+            mw_values = df[self.mw_column].dropna()
+            if len(mw_values) > 0:
+                polymer_stats['total_molecular_weight'] = {
+                    'count': len(mw_values),
+                    'coverage': (len(mw_values) / len(df)) * 100,
+                    'mean': float(np.mean(mw_values)),
+                    'std': float(np.std(mw_values)),
+                    'min': float(np.min(mw_values)),
+                    'max': float(np.max(mw_values)),
+                    'median': float(np.median(mw_values))
+                }
+        
+        # Analyze polymer feature extraction success rate only if extractor exists
+        if self.polymer_extractor is not None:
+            successful_extractions = 0
+            total_attempts = min(100, len(df))  # Sample to avoid performance issues
+            
+            for i in range(total_attempts):
+                try:
+                    smiles = df.iloc[i][self.smiles_column]
+                    dp = df.iloc[i].get(self.dp_column) if self.dp_column else None
+                    mw = df.iloc[i].get(self.mw_column) if self.mw_column else None
+                    
+                    # Try to extract polymer features
+                    self.polymer_extractor.extract_features(smiles, dp=dp, mw=mw)
+                    successful_extractions += 1
+                except (PolymerFeatureError, Exception):
+                    pass
+            
+            polymer_stats['feature_extraction'] = {
+                'success_rate': (successful_extractions / total_attempts) * 100,
+                'samples_tested': total_attempts,
+                'feature_dim': self.polymer_extractor.get_feature_dim()
+            }
+        
+        self.quality_metrics['polymer_stats'] = polymer_stats
         
     def _detect_outliers(self, df: pd.DataFrame):
         """Detect outliers in Tg values using IQR method."""
@@ -351,7 +442,7 @@ class PolymerTgDataset(Dataset):
         
         if graph is None:
             # Return dummy graph if conversion fails
-            logger.warning(f"Failed to convert SMILES: {smiles}")
+            logger.warning(f"Failed to convert SMILES: {smiles} - creating dummy graph")
             graph = Data(
                 x=torch.zeros(1, self.graph_converter.atom_feature_dim),
                 edge_index=torch.zeros(2, 0, dtype=torch.long),
@@ -359,6 +450,18 @@ class PolymerTgDataset(Dataset):
                 mol_features=torch.zeros(13, dtype=torch.float),  # Match molecular feature dim
                 smiles=smiles
             )
+        
+        # Extract polymer features only if enabled
+        if self.use_polymer_features and self.polymer_extractor is not None:
+            try:
+                dp = row.get(self.dp_column) if self.dp_column else None
+                mw = row.get(self.mw_column) if self.mw_column else None
+                polymer_features = self.polymer_extractor.extract_features(smiles, dp=dp, mw=mw)
+                graph.polymer_features = polymer_features
+            except PolymerFeatureError as e:
+                logger.warning(f"Failed to extract polymer features for {smiles}: {e}")
+                # Use zero features as fallback
+                graph.polymer_features = torch.zeros(self.polymer_extractor.get_feature_dim(), dtype=torch.float32)
         
         # Add target value
         graph.y = torch.tensor([row[self.target_column]], dtype=torch.float)
@@ -429,52 +532,32 @@ class PolymerTgDataset(Dataset):
         print(f"\nDuplicate SMILES:")
         print(f"  Count: {duplicates['count']}")
         
+        # Polymer features
+        if 'polymer_stats' in self.quality_metrics:
+            polymer_stats = self.quality_metrics['polymer_stats']
+            print(f"\nPolymer Features:")
+            
+            if 'degree_polymerization' in polymer_stats:
+                dp_stats = polymer_stats['degree_polymerization']
+                print(f"  Degree of Polymerization:")
+                print(f"    Coverage: {dp_stats['coverage']:.1f}% ({dp_stats['count']} samples)")
+                print(f"    Range: {dp_stats['min']:.0f} to {dp_stats['max']:.0f}")
+                print(f"    Mean: {dp_stats['mean']:.0f}")
+            
+            if 'total_molecular_weight' in polymer_stats:
+                mw_stats = polymer_stats['total_molecular_weight']
+                print(f"  Total Molecular Weight:")
+                print(f"    Coverage: {mw_stats['coverage']:.1f}% ({mw_stats['count']} samples)")
+                print(f"    Range: {mw_stats['min']:.0f} to {mw_stats['max']:.0f} g/mol")
+                print(f"    Mean: {mw_stats['mean']:.0f} g/mol")
+            
+            if 'feature_extraction' in polymer_stats:
+                feat_stats = polymer_stats['feature_extraction']
+                print(f"  Feature Extraction:")
+                print(f"    Success Rate: {feat_stats['success_rate']:.1f}%")
+                print(f"    Feature Dimension: {feat_stats['feature_dim']}")
+        
         print("="*60)
 
 
-# Example usage and testing
-def test_polymer_tg_dataset():
-    """Test the polymer Tg dataset with example data."""
-    # Create example data
-    example_data = {
-        'smiles': [
-            'CCO',  # Ethanol
-            'c1ccccc1',  # Benzene
-            'CC(=O)O',  # Acetic acid
-            'CCCCCCCCCC',  # Decane
-            'CC(C)(C)c1ccc(cc1)C(C)(C)C',  # Branched aromatic
-        ],
-        'tg': [80.0, 120.0, 95.0, 60.0, 150.0]  # Example Tg values
-    }
-    
-    # Create test CSV
-    test_csv = Path('test_polymer_data.csv')
-    pd.DataFrame(example_data).to_csv(test_csv, index=False)
-    
-    try:
-        # Test dataset creation
-        dataset = PolymerTgDataset(
-            root='./test_data',
-            csv_file=str(test_csv),
-            split_type='all'
-        )
-        
-        print("Dataset created successfully!")
-        dataset.print_quality_summary()
-        
-        # Test data loading
-        sample = dataset[0]
-        print(f"\nSample 0:")
-        print(f"  SMILES: {sample.smiles}")
-        print(f"  Tg: {sample.y.item():.2f}°C")
-        print(f"  Graph nodes: {sample.num_nodes}")
-        print(f"  Graph edges: {sample.edge_index.shape[1]}")
-        
-    finally:
-        # Clean up
-        if test_csv.exists():
-            test_csv.unlink()
-
-
-if __name__ == "__main__":
-    test_polymer_tg_dataset() 
+ 
