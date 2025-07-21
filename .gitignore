@@ -183,3 +183,19 @@ notebooks/*.html
 
 # Multiple analysis files (keep only latest)
 analysis_summary_*.json
+dashboard_summary_*.json
+
+# Sample/test data files
+sample_*.csv
+*_sample.csv
+test_*.csv
+*_test.csv
+
+# Temporary analysis files
+*_temp.json
+temp_*.json
+*_backup.*
+backup_*.*
+
+# HTML notebook exports (can be regenerated)
+notebooks/exports/*.html

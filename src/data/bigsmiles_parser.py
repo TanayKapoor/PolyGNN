@@ -108,36 +108,4 @@ class BigSMILESParser:
         
         return features
 
-
-# Example usage and testing
-def test_bigsmiles_parser():
-    """Test the BigSMILES parser with example polymers"""
-    parser = BigSMILESParser()
-    
-    # Test cases
-    test_cases = [
-        # Polyethylene
-        "CC{[CH2][CH2]}CC",
-        # Polystyrene
-        "CC{[CH2][CH]c1ccccc1}CC",
-        # PET (Polyethylene terephthalate)
-        "{[#OCH2CH2OC(=O)c1ccc(cc1)C(=O)#]}",
-        # Random copolymer
-        "CC{[CH2][CH2],[CH2][CH]C}CC"
-    ]
-    
-    for i, bigsmiles in enumerate(test_cases):
-        print(f"\n=== Test Case {i+1}: {bigsmiles} ===")
-        result = parser.parse_bigsmiles(bigsmiles)
-        print(f"Repeat units: {len(result['repeat_units'])}")
-        for j, unit in enumerate(result['repeat_units']):
-            mw = unit.get('molecular_weight', 'N/A')
-            print(f"  Unit {j+1}: {unit['smiles']} (MW: {mw:.2f})")
-        print(f"Bonds: {result['bonds']}")
-        print(f"Terminal groups: {result['terminal_groups']}")
-        print(f"Average repeat MW: {result['avg_repeat_mw']:.2f}")
-        print(f"Complexity score: {result['complexity_score']}")
-
-
-if __name__ == "__main__":
-    test_bigsmiles_parser() 
+ 
