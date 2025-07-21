@@ -81,11 +81,19 @@ def create_graph_datasets(config: Dict[str, Any], quick_mode: bool = False):
     
     # Create datasets
     data_config = config['data']
+    
+    # Get polymer feature configuration only if enabled in model config
+    model_config = config.get('model', {})
+    use_polymer_features = model_config.get('use_polymer_features', False)
+    polymer_feature_kwargs = config.get('polymer_features', {}) if use_polymer_features else None
+    
     train_dataset = PolymerTgDataset(
         root='./data/processed',
         csv_file=data_config['dataset_path'],
         smiles_column=data_config['smiles_column'],
         target_column=data_config['target_column'],
+        dp_column=data_config.get('dp_column'),
+        mw_column=data_config.get('mw_column'),
         split_type='train',
         split_ratios=(
             data_config['splits']['train_ratio'],
@@ -93,6 +101,7 @@ def create_graph_datasets(config: Dict[str, Any], quick_mode: bool = False):
             data_config['splits']['test_ratio']
         ),
         graph_converter_kwargs=converter_kwargs,
+        polymer_feature_kwargs=polymer_feature_kwargs,
         random_state=config['experiment']['random_seed']
     )
     
@@ -101,6 +110,8 @@ def create_graph_datasets(config: Dict[str, Any], quick_mode: bool = False):
         csv_file=data_config['dataset_path'],
         smiles_column=data_config['smiles_column'],
         target_column=data_config['target_column'],
+        dp_column=data_config.get('dp_column'),
+        mw_column=data_config.get('mw_column'),
         split_type='val',
         split_ratios=(
             data_config['splits']['train_ratio'],
@@ -108,6 +119,7 @@ def create_graph_datasets(config: Dict[str, Any], quick_mode: bool = False):
             data_config['splits']['test_ratio']
         ),
         graph_converter_kwargs=converter_kwargs,
+        polymer_feature_kwargs=polymer_feature_kwargs,
         random_state=config['experiment']['random_seed']
     )
     
@@ -116,6 +128,8 @@ def create_graph_datasets(config: Dict[str, Any], quick_mode: bool = False):
         csv_file=data_config['dataset_path'],
         smiles_column=data_config['smiles_column'],
         target_column=data_config['target_column'],
+        dp_column=data_config.get('dp_column'),
+        mw_column=data_config.get('mw_column'),
         split_type='test',
         split_ratios=(
             data_config['splits']['train_ratio'],
@@ -123,6 +137,7 @@ def create_graph_datasets(config: Dict[str, Any], quick_mode: bool = False):
             data_config['splits']['test_ratio']
         ),
         graph_converter_kwargs=converter_kwargs,
+        polymer_feature_kwargs=polymer_feature_kwargs,
         random_state=config['experiment']['random_seed']
     )
     

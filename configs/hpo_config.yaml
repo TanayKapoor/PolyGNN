@@ -1,0 +1,123 @@
+# HPO Configuration for Polymer GCN
+# Defines search spaces and optimization settings
+
+# HPO Method Configuration
+hpo:
+  method: "random"  # "grid" or "random"
+  max_trials: 50    # Number of trials for random search
+  cv_folds: 5       # Cross-validation folds
+  primary_metric: "r2"  # Primary optimization metric: "r2", "rmse", "mae"
+  max_epochs: 50    # Max epochs per trial
+  patience: 8       # Early stopping patience per trial
+  random_seed: 42   # Random seed for reproducibility
+
+# Final training configuration
+final_training:
+  max_epochs: 100
+  patience: 15
+  save_model: true
+
+# Success criteria
+success_criteria:
+  r2_target: 0.5
+  rmse_target: 50.0
+  mae_target: 30.0
+
+# Data configuration  
+data:
+  csv_file: "data/processed/filtered_tg_dataset.csv"
+  split_ratios: [0.8, 0.1, 0.1]  # train, val, test
+  smiles_column: "SMILES"  # Column name for SMILES strings
+  target_column: "Tg"      # Column name for target values
+  
+  # Polymer feature settings
+  polymer_features:
+    use_fingerprints: true
+    use_molecular_weight: true
+    use_degree_of_polymerization: true
+    fingerprint_type: "morgan"
+    fingerprint_radius: 3
+    fingerprint_bits: 2048
+
+# Parameter search spaces
+parameter_grids:
+  
+  # Focused grid search (smaller space)
+  grid_search:
+    learning_rate: [5e-4, 1e-3, 2e-3, 5e-3]
+    hidden_dims:
+      - [64, 32, 16]
+      - [128, 64, 32] 
+      - [256, 128, 64]
+      - [512, 256, 128]
+    num_gcn_layers: [2, 3, 4, 5]
+    weight_decay: [0, 1e-5, 1e-4, 1e-3]
+    dropout_rate: [0.0, 0.1, 0.2, 0.3, 0.5]
+    batch_size: [16, 32, 64, 128]
+  
+  # Random search (broader exploration)
+  random_search:
+    learning_rate: [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2]
+    hidden_dims:
+      - [32, 16]
+      - [64, 32]
+      - [64, 32, 16]
+      - [128, 64]
+      - [128, 64, 32]
+      - [256, 128]
+      - [256, 128, 64]
+      - [512, 256]
+      - [512, 256, 128]
+      - [1024, 512, 256]
+    num_gcn_layers: [2, 3, 4, 5, 6]
+    weight_decay: [0, 1e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3]
+    dropout_rate: [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6]
+    batch_size: [8, 16, 24, 32, 48, 64, 96, 128, 192, 256]
+    pooling_method: ["mean", "max", "sum"]
+    activation: ["relu", "gelu", "tanh"]
+    use_molecular_features: [true, true]
+    use_polymer_features: [true, true]
+  
+  # Conservative search (for quick testing)
+  conservative_search:
+    learning_rate: [1e-3, 2e-3]
+    hidden_dims:
+      - [128, 64, 32]
+      - [256, 128, 64]
+    num_gcn_layers: [3, 4]
+    weight_decay: [1e-5, 1e-4]
+    dropout_rate: [0.1, 0.2]
+    batch_size: [32, 64]
+  
+  # Aggressive search (for comprehensive exploration)
+  aggressive_search:
+    learning_rate: [1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2]
+    hidden_dims:
+      - [16, 8]
+      - [32, 16, 8]
+      - [64, 32, 16, 8]
+      - [128, 64, 32, 16]
+      - [256, 128, 64, 32]
+      - [512, 256, 128, 64]
+      - [1024, 512, 256, 128]
+      - [2048, 1024, 512, 256]
+    num_gcn_layers: [1, 2, 3, 4, 5, 6, 7, 8]
+    weight_decay: [0, 1e-7, 1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2]
+    dropout_rate: [0.0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7]
+    batch_size: [4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512]
+    pooling_method: ["mean", "max", "sum"]
+    activation: ["relu", "gelu", "tanh", "leaky_relu", "elu"]
+    use_molecular_features: [true, false]
+    use_polymer_features: [true, false]
+
+# System configuration
+system:
+  device: "auto"  # "cuda", "cpu", or "auto"
+  results_dir: "results"
+  save_all_models: false  # Warning: storage intensive if true
+  
+# Logging configuration
+logging:
+  level: "INFO"
+  log_file: "hpo_optimization.log"
+  console_output: true 

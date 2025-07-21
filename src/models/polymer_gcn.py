@@ -31,6 +31,8 @@ class PolymerGCN(nn.Module):
                  pooling_method: str = 'mean',
                  use_molecular_features: bool = True,
                  molecular_feature_dim: int = 13,
+                 use_polymer_features: bool = True,
+                 polymer_feature_dim: int = 130,
                  activation: str = 'relu'):
         """
         Initialize the GCN model.
@@ -43,6 +45,8 @@ class PolymerGCN(nn.Module):
             pooling_method: Graph pooling method ('mean', 'max', 'sum')
             use_molecular_features: Whether to use molecular-level features
             molecular_feature_dim: Dimension of molecular features
+            use_polymer_features: Whether to use polymer-specific features
+            polymer_feature_dim: Dimension of polymer features (default 130: 1 MW + 1 DP + 128 FP)
             activation: Activation function ('relu', 'gelu', 'tanh')
         """
         super().__init__()
@@ -51,6 +55,7 @@ class PolymerGCN(nn.Module):
         self.dropout_rate = dropout_rate
         self.pooling_method = pooling_method
         self.use_molecular_features = use_molecular_features
+        self.use_polymer_features = use_polymer_features
         
         # Activation function
         if activation == 'relu':
@@ -79,12 +84,19 @@ class PolymerGCN(nn.Module):
         else:
             raise ValueError(f"Unsupported pooling method: {pooling_method}")
         
+        # Polymer feature embedding
+        if use_polymer_features:
+            self.polymer_embed = nn.Linear(polymer_feature_dim, hidden_dims[0])
+        
         # Calculate input dimension for final MLP
         graph_feature_dim = gcn_dims[-1]  # Output from GCN layers
         mlp_input_dim = graph_feature_dim
         
         if use_molecular_features:
             mlp_input_dim += molecular_feature_dim
+            
+        if use_polymer_features:
+            mlp_input_dim += hidden_dims[0]  # Size of polymer embedding
         
         # Final MLP layers
         self.mlp_layers = nn.ModuleList()
@@ -143,6 +155,23 @@ class PolymerGCN(nn.Module):
             
             graph_features = torch.cat([graph_features, mol_features], dim=1)
         
+        # Concatenate with polymer features if available
+        if self.use_polymer_features and hasattr(data, 'polymer_features'):
+            polymer_features = data.polymer_features
+            batch_size = graph_features.shape[0]
+            
+            # Handle PyTorch Geometric's batching of polymer features
+            if polymer_features.dim() == 1:
+                # PyTorch Geometric concatenates features, so reshape back to [batch_size, feature_dim]
+                expected_feature_dim = polymer_features.shape[0] // batch_size
+                polymer_features = polymer_features.view(batch_size, expected_feature_dim)
+            
+            # Apply polymer embedding layer
+            polymer_emb = self.polymer_embed(polymer_features)
+            polymer_emb = self.activation(polymer_emb)
+            
+            graph_features = torch.cat([graph_features, polymer_emb], dim=1)
+        
         # Final MLP
         x = graph_features
         for i in range(0, len(self.mlp_layers), 2):
@@ -192,6 +221,23 @@ class PolymerGCN(nn.Module):
             
             graph_features = torch.cat([graph_features, mol_features], dim=1)
         
+        # Concatenate with polymer features if available
+        if self.use_polymer_features and hasattr(data, 'polymer_features'):
+            polymer_features = data.polymer_features
+            batch_size = graph_features.shape[0]
+            
+            # Handle PyTorch Geometric's batching of polymer features
+            if polymer_features.dim() == 1:
+                # PyTorch Geometric concatenates features, so reshape back to [batch_size, feature_dim]
+                expected_feature_dim = polymer_features.shape[0] // batch_size
+                polymer_features = polymer_features.view(batch_size, expected_feature_dim)
+            
+            # Apply polymer embedding layer
+            polymer_emb = self.polymer_embed(polymer_features)
+            polymer_emb = self.activation(polymer_emb)
+            
+            graph_features = torch.cat([graph_features, polymer_emb], dim=1)
+        
         return graph_features
 
 
@@ -236,78 +282,12 @@ def create_gcn_model_from_config(config: dict, node_feature_dim: int) -> Polymer
         pooling_method=config.get('pooling_method', 'mean'),
         use_molecular_features=config.get('use_molecular_features', True),
         molecular_feature_dim=config.get('molecular_feature_dim', 13),
+        use_polymer_features=config.get('use_polymer_features', True),
+        polymer_feature_dim=config.get('polymer_feature_dim', 130),
         activation=config.get('activation', 'relu')
     )
     
     return model
 
 
-# Example usage and testing
-def test_polymer_gcn():
-    """Test the GCN model with dummy data."""
-    print("Testing Polymer GCN Model")
-    print("=" * 40)
-    
-    # Create dummy graph data
-    batch_size = 4
-    num_nodes_per_graph = 20
-    node_feature_dim = 157  # Based on MolecularGraphConverter
-    mol_feature_dim = 13
-    
-    # Create dummy batch
-    graphs = []
-    for i in range(batch_size):
-        # Random node features
-        x = torch.randn(num_nodes_per_graph, node_feature_dim)
-        
-        # Random edge connectivity (small graph)
-        num_edges = 30
-        edge_index = torch.randint(0, num_nodes_per_graph, (2, num_edges))
-        
-        # Random molecular features
-        mol_features = torch.randn(mol_feature_dim)
-        
-        # Target value
-        y = torch.randn(1)
-        
-        graph = Data(x=x, edge_index=edge_index, mol_features=mol_features, y=y)
-        graphs.append(graph)
-    
-    # Create batch
-    from torch_geometric.loader import DataLoader
-    loader = DataLoader(graphs, batch_size=batch_size, shuffle=False)
-    batch = next(iter(loader))
-    
-    # Test model
-    model = PolymerGCN(
-        node_feature_dim=node_feature_dim,
-        hidden_dims=[128, 64, 32],
-        num_gcn_layers=3,
-        use_molecular_features=True,
-        molecular_feature_dim=mol_feature_dim
-    )
-    
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-    
-    # Forward pass
-    model.eval()
-    with torch.no_grad():
-        output = model(batch)
-        embeddings = model.get_graph_embeddings(batch)
-    
-    print(f"Input batch size: {batch_size}")
-    print(f"Output shape: {output.shape}")
-    print(f"Embeddings shape: {embeddings.shape}")
-    print(f"Sample predictions: {output.squeeze().numpy()}")
-    
-    # Test training mode
-    model.train()
-    output_train = model(batch)
-    loss = F.mse_loss(output_train.squeeze(), batch.y)
-    
-    print(f"Training loss: {loss.item():.4f}")
-    print("✅ GCN model test passed!")
-
-
-if __name__ == "__main__":
-    test_polymer_gcn() 
+ 

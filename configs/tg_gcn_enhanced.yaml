@@ -1,18 +1,18 @@
-# Glass Transition Temperature (Tg) Prediction - GCN Baseline Configuration
-# Configuration for Graph Convolutional Network baseline model
+# Glass Transition Temperature (Tg) Prediction - Enhanced GCN Configuration
+# Configuration for GCN model with polymer-specific features
 
 experiment:
-  name: "tg_gcn_baseline"
-  description: "Simple GCN baseline for polymer Tg prediction using molecular graphs"
+  name: "tg_gcn_enhanced"
+  description: "Enhanced GCN with polymer features for polymer Tg prediction"
   random_seed: 42
 
 # Dataset configuration
 data:
-  dataset_path: "data/processed/polymer_tg_data.csv"
-  smiles_column: "smiles"
-  target_column: "tg"
-  dp_column: null    # Optional: degree of polymerization column
-  mw_column: null    # Optional: molecular weight column
+  dataset_path: "data/processed/filtered_tg_dataset.csv"  # Or your custom CSV
+  smiles_column: "processed_smiles"  # Or "smiles" 
+  target_column: "Tg"                # Or "tg"
+  dp_column: "dp"                    # Optional: degree of polymerization column
+  mw_column: "mw"                    # Optional: molecular weight column
   
   # Data splits
   splits:
@@ -24,9 +24,9 @@ data:
   # Target value processing
   target_transform:
     enabled: true
-    method: "clip"  # clip, log, normalize
-    clip_min: -200  # Minimum Tg value (°C)
-    clip_max: 500   # Maximum Tg value (°C)
+    method: "clip"
+    clip_min: -200
+    clip_max: 500
 
 # Graph conversion settings
 graph:
@@ -40,20 +40,20 @@ model:
   type: "gcn"
   
   # GCN specific parameters
-  node_feature_dim: 157  # Calculated from MolecularGraphConverter
+  node_feature_dim: 157
   molecular_feature_dim: 13
   num_gcn_layers: 3
-  hidden_dims: [128, 64, 32]  # Hidden dimensions for final MLP
+  hidden_dims: [128, 64, 32]
   dropout_rate: 0.2
-  pooling_method: "mean"  # mean, max, sum
+  pooling_method: "mean"
   use_molecular_features: true
-  use_polymer_features: false  # Enable for polymer-specific features
-  polymer_feature_dim: 130     # 1 MW + 1 DP + 128 fingerprint
-  activation: "relu"  # relu, gelu, tanh
+  use_polymer_features: true    # ENHANCED: Enable polymer features
+  polymer_feature_dim: 130
+  activation: "relu"
 
 # Training parameters
 training:
-  device: "auto"  # auto, cuda, cpu
+  device: "auto"
   batch_size: 32
   epochs: 100
   learning_rate: 0.001
@@ -61,7 +61,7 @@ training:
   
   # Early stopping
   early_stopping:
-    patience: 10
+    patience: 15
     min_delta: 1e-4
 
 # Cross-validation settings
@@ -74,11 +74,11 @@ cross_validation:
 # Results and logging
 results:
   save_dir: "results"
-  model_name: "tg_gcn_baseline"
+  model_name: "tg_gcn_enhanced"
   log_level: "INFO"
   log_file: null
 
-# Polymer-specific features (optional)
+# Polymer-specific features (ENHANCED)
 polymer_features:
   fingerprint_size: 128
   fp_radius: 2
@@ -88,12 +88,10 @@ polymer_features:
 
 # Advanced options
 advanced:
-  # Feature scaling
   feature_scaling:
     node_features: false
     molecular_features: true
   
-  # Data augmentation
   data_augmentation:
     enabled: false
     methods: []
@@ -105,14 +103,13 @@ quick_mode:
   epochs: 10
   cv_folds: 3
 
-# Success criteria for model evaluation
+# Success criteria
 monitoring:
   success_criteria:
-    min_r2: 0.5      # Minimum R² score
-    max_rmse: 50.0   # Maximum RMSE (°C)
-    max_mae: 30.0    # Maximum MAE (°C)
+    min_r2: 0.5
+    max_rmse: 50.0
+    max_mae: 30.0
   
-  # Metrics to track
   metrics:
     - "r2"
     - "rmse" 
