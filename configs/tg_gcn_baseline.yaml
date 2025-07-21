@@ -8,9 +8,11 @@ experiment:
 
 # Dataset configuration
 data:
-  dataset_path: "data/processed/filtered_tg_dataset.csv"
-  smiles_column: "processed_smiles"
-  target_column: "Tg"
+  dataset_path: "data/processed/polymer_tg_data.csv"
+  smiles_column: "smiles"
+  target_column: "tg"
+  dp_column: null    # Optional: degree of polymerization column
+  mw_column: null    # Optional: molecular weight column
   
   # Data splits
   splits:
@@ -45,6 +47,8 @@ model:
   dropout_rate: 0.2
   pooling_method: "mean"  # mean, max, sum
   use_molecular_features: true
+  use_polymer_features: false  # Enable for polymer-specific features
+  polymer_feature_dim: 130     # 1 MW + 1 DP + 128 fingerprint
   activation: "relu"  # relu, gelu, tanh
 
 # Training parameters
@@ -73,6 +77,14 @@ results:
   model_name: "tg_gcn_baseline"
   log_level: "INFO"
   log_file: null
+
+# Polymer-specific features (optional)
+polymer_features:
+  fingerprint_size: 128
+  fp_radius: 2
+  log_scale_dp: true
+  max_dp: 10000
+  cache_features: false
 
 # Advanced options
 advanced:
