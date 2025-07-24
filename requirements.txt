@@ -39,6 +39,9 @@ tqdm>=4.64.0
 wandb>=0.13.0
 tensorboard>=2.10.0
 
+# Feature Importance and Explainability
+shap>=0.48.0
+
 # Molecular Descriptors
 mordred>=1.2.0
 
