@@ -373,7 +373,7 @@ def calculate_repetition_unit_complexity(smiles: str) -> np.ndarray:
         
         unit_mol = editable_mol.GetMol()
         if unit_mol is None or unit_mol.GetNumAtoms() == 0:
-            return np.zeros(6, dtype=np.float32)
+            return np.zeros(7, dtype=np.float32)
         
         # Ensure proper initialization
         try:
@@ -386,7 +386,7 @@ def calculate_repetition_unit_complexity(smiles: str) -> np.ndarray:
         num_bonds = unit_mol.GetNumBonds()
         
         if num_atoms == 0:
-            return np.zeros(6, dtype=np.float32)
+            return np.zeros(7, dtype=np.float32)
         
         # 1. Ring complexity
         num_rings = rdMolDescriptors.CalcNumRings(unit_mol)
@@ -451,7 +451,7 @@ def calculate_polymer_molecular_descriptors(smiles: str, dp: Union[float, int] =
         dp: Degree of polymerization
         
     Returns:
-        1D numpy array with polymer molecular descriptors [6 features]
+        1D numpy array with polymer molecular descriptors [7 features]
         
     Raises:
         PolymerFeatureError: If SMILES processing fails
@@ -472,7 +472,7 @@ def calculate_polymer_molecular_descriptors(smiles: str, dp: Union[float, int] =
         
         unit_mol = editable_mol.GetMol()
         if unit_mol is None or unit_mol.GetNumAtoms() == 0:
-            return np.zeros(6, dtype=np.float32)
+            return np.zeros(7, dtype=np.float32)
         
         # Ensure proper initialization
         try:
@@ -484,7 +484,7 @@ def calculate_polymer_molecular_descriptors(smiles: str, dp: Union[float, int] =
         num_atoms = unit_mol.GetNumAtoms()
         
         if num_atoms == 0:
-            return np.zeros(6, dtype=np.float32)
+            return np.zeros(7, dtype=np.float32)
         
         # 1. Free volume fraction estimate
         # Based on van der Waals volume vs molar volume
@@ -542,7 +542,7 @@ def calculate_polymer_molecular_descriptors(smiles: str, dp: Union[float, int] =
         except Exception:
             polarity_factor = 0.0
         
-        tg_predictor = stiffness - flexibility_factor * 0.5 + polarity_factor * 2.0
+        # tg_predictor = stiffness - flexibility_factor * 0.5 + polarity_factor * 2.0  # REMOVED: Target leakage
         
         # 6. Crystallinity indicators
         # Regularity and symmetry measures
@@ -555,7 +555,8 @@ def calculate_polymer_molecular_descriptors(smiles: str, dp: Union[float, int] =
             np.log10(stiffness + 1),  # Log scale for stiffness
             interaction_strength,
             packing_efficiency,
-            tg_predictor,
+            flexibility_factor,  # Added as separate feature
+            polarity_factor,     # Added as separate feature
             crystallinity_indicator
         ], dtype=np.float32)
         
@@ -709,7 +710,7 @@ class PolymerFeatureExtractor:
         if include_complexity:
             self.feature_dim += 6  # Complexity features
         if include_molecular_descriptors:
-            self.feature_dim += 6  # Polymer descriptors
+            self.feature_dim += 7  # Polymer descriptors (updated count after tg_predictor removal)
         
         logger.info(f"Initialized PolymerFeatureExtractor with {self.feature_dim} features")
     
@@ -817,7 +818,8 @@ class PolymerFeatureExtractor:
                 'chain_stiffness_log',
                 'interaction_strength',
                 'packing_efficiency',
-                'tg_predictor',
+                'flexibility_factor',
+                'polarity_factor',
                 'crystallinity_indicator'
             ]
         
