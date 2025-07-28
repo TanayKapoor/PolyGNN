@@ -1,0 +1,95 @@
+### Instructions for Code Cleanup Before Pushing
+
+Before pushing your PolyGNN project code to GitHub (or any repo), thorough cleanup ensures professionalism, maintainability, and security. This prevents issues like dead code, formatting inconsistencies, or leaked secrets. Follow these steps sequentially—use tools like Black, Flake8, and Git for automation. Assume a Python project structure (e.g., scripts in `src/`, data in `data/`, notebooks in root). Time estimate: 1-2 hours for a medium project.
+
+#### 1. **Backup Your Code**
+   - Create a local backup: `cp -r your_project_dir your_project_backup_$(date +%Y%m%d)`.
+   - Commit current state: `git add . && git commit -m "Pre-cleanup backup"`.
+   - Why: Avoid accidental losses during cleanup.
+
+#### 2. **Organize Project Structure**
+   - Standardize folders:
+     - `src/`: Core scripts (e.g., gnn_model.py, preprocess.py).
+     - `data/raw/`: Original datasets (e.g., Polymer Tg SMILES.xlsx).
+     - `data/processed/`: Cleaned CSVs (e.g., full_feats.csv).
+     - `notebooks/`: Jupyter files for analysis (e.g., shap_analysis.ipynb).
+     - `tests/`: Unit tests (if any).
+     - `docs/`: README.md, LICENSE.
+     - Root: requirements.txt, .gitignore, main.py or app.py.
+   - Move files accordingly: Use `mv` or IDE refactor.
+   - Delete temp files: Remove `.pyc`, `__pycache__`, `.ipynb_checkpoints`, old backups.
+
+#### 3. **Remove Unused Code and Files**
+   - Scan for dead code: Use VS Code's "Find All References" or `grep` for unused functions/vars.
+   - Delete: Comment out or remove experimental code (e.g., old feat calcs). Use `git rm` for files.
+   - Check imports: Remove unused (e.g., `from rdkit import *` → specific imports).
+   - Tools: Install `vulture` (`pip install vulture`), run `vulture src/` to flag dead code.
+
+#### 4. **Format Code Consistently**
+   - Use Black for auto-formatting (PEP8-compliant): `pip install black`, then `black .` (formats all Python files).
+   - Lint with Flake8: `pip install flake8`, run `flake8 .`—fix errors (e.g., line length >79, missing spaces).
+   - Notebooks: Use `black-nb` (`pip install black[jupyter]`), run `black-nb notebooks/`.
+   - Why: Consistent style (e.g., single quotes, 88-char lines) makes code readable.
+
+#### 5. **Add/Improve Documentation and Comments**
+   - Docstrings: Add to all functions/classes (Google/NumPy style). E.g.:
+     ```python
+     def calc_poly_feats(row):
+         """Calculates 147 polymer-specific features from SMILES.
+         
+         Args:
+             row (pd.Series): DataFrame row with 'SMILES' column.
+         
+         Returns:
+             pd.Series: Computed features.
+         """
+         # Code...
+     ```
+   - Comments: Inline for complex logic (e.g., "# Proxy for FFV using density est").
+   - README.md: Update with:
+     - Project overview (PolyGNN for Tg/Tm/density pred).
+     - Install: `pip install -r requirements.txt`.
+     - Usage: `python src/train_gnn.py`.
+     - Results: R²=0.67, top feats from SHAP.
+     - License: Add MIT text.
+   - requirements.txt: Generate with `pip freeze > requirements.txt`—pin versions (e.g., rdkit==2023.9.6).
+
+#### 6. **Handle Secrets and Sensitive Data**
+   - Scan for keys: Use `git secrets` or `grep -r "API_KEY\|password\|secret"`—remove any (e.g., Kaggle tokens).
+   - .gitignore: Add/ensure:
+     ```
+     *.pyc
+     __pycache__/
+     data/raw/*
+     .env
+     *.ipynb_checkpoints
+     ```
+   - Data: Anonymize if needed; don't push raw CSVs with sensitive info—use .gitignore for large files.
+
+#### 7. **Add/Run Tests**
+   - Basic tests: Create `tests/test_preprocess.py` with pytest (`pip install pytest`).
+     E.g.:
+     ```python
+     import pytest
+     from src.preprocess import calc_poly_feats
+
+     def test_calc_poly_feats():
+         row = pd.Series({'SMILES': '*CC(*)'})
+         feats = calc_poly_feats(row)
+         assert 'morgan_fp_0' in feats
+         assert feats['degree_polymerization'] > 0
+     ```
+   - Run: `pytest tests/`—fix failures.
+
+#### 8. **Version Control Cleanup**
+   - Git status: `git status`—add untracked, remove ignored.
+   - Commit history: Squash messy commits (`git rebase -i HEAD~n`), meaningful messages (e.g., "feat: add SHAP analysis").
+   - Branch: Work on `cleanup` branch (`git checkout -b cleanup`), merge to main after.
+
+#### 9. **Final Checks and Push**
+   - Run full pipeline: Test end-to-end (preprocess → train → predict) for errors.
+   - Static analysis: `pylint src/` (`pip install pylint`)—aim score >8/10.
+   - Push: `git add . && git commit -m "Code cleanup and organization" && git push origin main`.
+   - Tag release: `git tag v1.0 && git push --tags` for open-source.
+
+This ensures clean, professional code—scan for project-specifics (e.g., GNN graph handling). If issues, debug with code_execution tool. We cool?
