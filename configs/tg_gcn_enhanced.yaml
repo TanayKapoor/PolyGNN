@@ -48,7 +48,7 @@ model:
   pooling_method: "mean"
   use_molecular_features: true
   use_polymer_features: true    # ENHANCED: Enable polymer features
-  polymer_feature_dim: 130
+  polymer_feature_dim: 148
   activation: "relu"
 
 # Training parameters
