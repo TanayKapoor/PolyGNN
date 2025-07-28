@@ -221,7 +221,7 @@ def run_single_training(config: Dict[str, Any],
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         batch_size=int(training_config['batch_size']),
-        epochs=int(training_config['epochs']),
+        max_epochs=int(training_config['epochs']),
         learning_rate=float(training_config['learning_rate']),
         weight_decay=float(training_config['weight_decay']),
         patience=int(training_config['early_stopping']['patience'])
@@ -316,7 +316,7 @@ def run_cross_validation(config: Dict[str, Any], quick_mode: bool = False):
         dataset=full_dataset,
         n_folds=cv_config['n_folds'],
         batch_size=training_config['batch_size'],
-        epochs=cv_config.get('epochs', 50),
+        max_epochs=cv_config.get('epochs', 50),
         learning_rate=training_config['learning_rate'],
         weight_decay=training_config['weight_decay'],
         patience=cv_config.get('patience', 8)
