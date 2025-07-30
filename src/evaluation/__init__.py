@@ -1,8 +1,9 @@
 """
-Evaluation utilities for polymer GNN
+Evaluation utilities for polymer GNN models
 """
 
-# Import evaluation utilities here when they are implemented
-# from .metrics import evaluation_metrics
+# Evaluation imports will be added here as they are implemented
+# from .metrics import regression_metrics, classification_metrics
+# from .visualize import plot_predictions, plot_training_curves
 
-__all__ = [] 
+__all__ = []

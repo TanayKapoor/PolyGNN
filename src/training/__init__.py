@@ -1,9 +1,8 @@
 """
-Training utilities for polymer GNN
+Training utilities for polymer GNN models
 """
 
-# Import training utilities here when they are implemented
-# from .trainer import Trainer
-# from .utils import training_utils
+from .gcn_trainer import PolymerGCNTrainer
+from .trainer import PolymerBaselineTrainer
 
-__all__ = [] 
+__all__ = ["PolymerBaselineTrainer", "PolymerGCNTrainer"]

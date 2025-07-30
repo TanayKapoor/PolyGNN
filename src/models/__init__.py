@@ -1,9 +1,18 @@
 """
-Model implementations for polymer GNN
+GNN models for polymer property prediction
 """
 
-# Import models here when they are implemented
-# from .polymer_gnn import PolymerGNN
-# from .multi_task_model import MultiTaskModel
+from .polymer_baseline import (
+    PolymerFeatureExtractor,
+    PolymerFingerprintBaseline,
+    PolymerFingerprintDataset,
+    create_baseline_model_and_extractor,
+)
+from .polymer_gcn import PolymerGCN, PolymerGCNDataset, create_gcn_model_from_config
 
-__all__ = [] 
+__all__ = [
+    "PolymerFingerprintBaseline",
+    "PolymerFeatureExtractor",
+    "PolymerFingerprintDataset",
+    "create_baseline_model_and_extractor",
+]
