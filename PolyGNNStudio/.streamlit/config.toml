@@ -1,11 +1,29 @@
+# Streamlit configuration for PolyGNN Showcase
+
+[global]
+# Development settings
+developmentMode = false
+# Suppress deprecation warnings
+suppressDeprecationWarnings = true
+
 [server]
 headless = true
 address = "0.0.0.0"
-port = 5000
+port = 8501
+enableCORS = false
+enableXsrfProtection = false
+maxUploadSize = 200
+maxMessageSize = 200
+# Disable file watcher to avoid torch.classes introspection issues
+fileWatcherType = "none"
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
 
 [theme]
-base = "dark"
-primaryColor = "#00f5ff"
-backgroundColor = "#0e1117"
-secondaryBackgroundColor = "#262730"
-textColor = "#fafafa"
+primaryColor = "#1f77b4"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+font = "sans serif"
