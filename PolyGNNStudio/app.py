@@ -20,14 +20,38 @@ st.set_page_config(
 
 import pandas as pd
 import numpy as np
-from rdkit import Chem
-from rdkit.Chem import Descriptors, Draw
-from rdkit.Chem.rdDepictor import Compute2DCoords
 import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 import io
 from PIL import Image
+
+# Import RDKit with error handling for headless deployment
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors
+    RDKIT_AVAILABLE = True
+    
+    # Try to import drawing functionality (may fail on headless servers)
+    try:
+        from rdkit.Chem import Draw
+        from rdkit.Chem.rdDepictor import Compute2DCoords
+        RDKIT_DRAW_AVAILABLE = True
+    except ImportError as e:
+        if "libXrender" in str(e) or "libX" in str(e):
+            st.warning("⚠️ RDKit drawing not available in headless mode - structure visualization disabled")
+        RDKIT_DRAW_AVAILABLE = False
+        Draw = None
+        Compute2DCoords = None
+        
+except ImportError as e:
+    st.error(f"❌ RDKit not available: {e}")
+    RDKIT_AVAILABLE = False
+    RDKIT_DRAW_AVAILABLE = False
+    Chem = None
+    Descriptors = None
+    Draw = None
+    Compute2DCoords = None
 # Import torch with error handling for classes module issue
 try:
     import torch
@@ -246,16 +270,24 @@ def single_smiles_input():
                 
                 with col1:
                     # Display molecule info
-                    mol = Chem.MolFromSmiles(smiles_input.replace('*', ''))
-                    if mol:
-                        st.info(f"**Molecular Formula:** {Chem.rdMolDescriptors.CalcMolFormula(mol)}")
-                        st.info(f"**Molecular Weight:** {Descriptors.ExactMolWt(mol):.2f} g/mol")
-                        
-                        # Additional polymer info
-                        if '*' in smiles_input:
-                            st.info("**Type:** Polymer with repeat units")
-                        else:
-                            st.info("**Type:** Small molecule")
+                    if RDKIT_AVAILABLE:
+                        try:
+                            mol = Chem.MolFromSmiles(smiles_input.replace('*', ''))
+                            if mol:
+                                st.info(f"**Molecular Formula:** {Chem.rdMolDescriptors.CalcMolFormula(mol)}")
+                                st.info(f"**Molecular Weight:** {Descriptors.ExactMolWt(mol):.2f} g/mol")
+                            else:
+                                st.warning("Could not parse molecular structure")
+                        except Exception as e:
+                            st.warning(f"Molecular analysis unavailable: {e}")
+                    else:
+                        st.info("**Molecular analysis:** RDKit not available")
+                    
+                    # Additional polymer info
+                    if '*' in smiles_input:
+                        st.info("**Type:** Polymer with repeat units")
+                    else:
+                        st.info("**Type:** Small molecule")
                 
                 with col2:
                     # Render and display 2D structure

@@ -1,0 +1,10 @@
+# System packages needed for RDKit on Streamlit Cloud
+# This helps avoid X11/rendering library issues in headless environment
+
+# Essential libraries for chemical rendering (optional - app handles gracefully if missing)
+libxrender1
+libxext6
+libsm6
+libxrandr2
+libfontconfig1
+libxss1

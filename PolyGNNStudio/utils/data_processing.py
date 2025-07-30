@@ -5,12 +5,33 @@ Handles SMILES validation, CSV processing, and data formatting.
 
 import pandas as pd
 import numpy as np
-from rdkit import Chem
-from rdkit.Chem import Descriptors, Draw
-from rdkit.Chem.rdDepictor import Compute2DCoords
 import streamlit as st
 from PIL import Image
 import io
+
+# Import RDKit with error handling for headless deployment
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors
+    RDKIT_AVAILABLE = True
+    
+    # Try to import drawing functionality (may fail on headless servers)
+    try:
+        from rdkit.Chem import Draw
+        from rdkit.Chem.rdDepictor import Compute2DCoords
+        RDKIT_DRAW_AVAILABLE = True
+    except ImportError as e:
+        RDKIT_DRAW_AVAILABLE = False
+        Draw = None
+        Compute2DCoords = None
+        
+except ImportError:
+    RDKIT_AVAILABLE = False
+    RDKIT_DRAW_AVAILABLE = False
+    Chem = None
+    Descriptors = None
+    Draw = None
+    Compute2DCoords = None
 
 def validate_smiles(smiles):
     """
@@ -22,6 +43,21 @@ def validate_smiles(smiles):
     Returns:
         tuple: (is_valid, message)
     """
+    if not RDKIT_AVAILABLE:
+        # Basic validation without RDKit
+        if not smiles or smiles.strip() == "":
+            return False, "Empty SMILES string"
+        
+        # Basic SMILES format checks
+        if any(char in smiles for char in ['<', '>', '|', '^', '&']):
+            return False, "Invalid characters in SMILES"
+        
+        # Check for basic polymer structure
+        if '*' in smiles:
+            return True, "SMILES format appears valid (polymer with repeat units) - RDKit validation unavailable"
+        else:
+            return True, "SMILES format appears valid - RDKit validation unavailable"
+    
     try:
         if not smiles or smiles.strip() == "":
             return False, "Empty SMILES string"
@@ -110,6 +146,20 @@ def calculate_molecular_descriptors(smiles_list):
     """
     descriptors_data = []
     
+    if not RDKIT_AVAILABLE:
+        # Return empty descriptors when RDKit is not available
+        for smiles in smiles_list:
+            desc = {
+                'SMILES': smiles,
+                'MolWeight': np.nan,
+                'LogP': np.nan,
+                'NumRotatableBonds': np.nan,
+                'NumAromaticRings': np.nan,
+                'TPSA': np.nan
+            }
+            descriptors_data.append(desc)
+        return pd.DataFrame(descriptors_data)
+    
     for smiles in smiles_list:
         try:
             mol = Chem.MolFromSmiles(smiles)
@@ -187,6 +237,10 @@ def render_smiles_structure(smiles, size=(400, 300), repeats=3):
     Returns:
         PIL.Image: Rendered molecular structure or None if invalid
     """
+    if not RDKIT_DRAW_AVAILABLE:
+        # Return None when drawing is not available - app will handle gracefully
+        return None
+    
     try:
         # Handle polymer SMILES with repeat units
         if '*' in smiles:
@@ -211,7 +265,9 @@ def render_smiles_structure(smiles, size=(400, 300), repeats=3):
         return img
         
     except Exception as e:
-        st.error(f"Error rendering SMILES structure: {str(e)}")
+        # Don't show error in headless mode, just return None
+        if RDKIT_AVAILABLE:
+            st.error(f"Error rendering SMILES structure: {str(e)}")
         return None
 
 def validate_polymer_structure(smiles):
@@ -224,6 +280,20 @@ def validate_polymer_structure(smiles):
     Returns:
         dict: Validation results with polymer-specific checks
     """
+    if not RDKIT_AVAILABLE:
+        # Basic validation without RDKit
+        has_repeat_units = '*' in smiles
+        is_polymer_like = has_repeat_units or any(pattern in smiles for pattern in ['CC', 'OO', 'NN'])
+        
+        return {
+            'is_valid': True,
+            'is_polymer': is_polymer_like,
+            'has_repeat_units': has_repeat_units,
+            'molecular_weight': None,
+            'formula': 'Unknown (RDKit unavailable)',
+            'message': 'Basic validation - RDKit unavailable'
+        }
+    
     try:
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
