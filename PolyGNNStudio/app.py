@@ -39,13 +39,13 @@ try:
         RDKIT_DRAW_AVAILABLE = True
     except ImportError as e:
         if "libXrender" in str(e) or "libX" in str(e):
-            st.warning("⚠️ RDKit drawing not available in headless mode - structure visualization disabled")
+            st.info("🖼️ **Demo Mode**: Structure visualization disabled in cloud deployment")
         RDKIT_DRAW_AVAILABLE = False
         Draw = None
         Compute2DCoords = None
         
 except ImportError as e:
-    st.error(f"❌ RDKit not available: {e}")
+    st.info("🧪 **Demo Mode**: Chemistry libraries not available - using basic validation")
     RDKIT_AVAILABLE = False
     RDKIT_DRAW_AVAILABLE = False
     Chem = None
@@ -59,14 +59,14 @@ try:
     if hasattr(torch, '_classes'):
         del torch._classes
 except ImportError as e:
-    st.error(f"Failed to import PyTorch: {e}")
+    st.info("🎭 **Demo Mode**: PyTorch not available - using synthetic predictions")
     torch = None
 
 try:
     import torch_geometric
     from torch_geometric.data import Data, Batch
 except ImportError as e:
-    st.error(f"Failed to import PyTorch Geometric: {e}")
+    st.info("🎭 **Demo Mode**: PyTorch Geometric not available - using synthetic predictions")
     torch_geometric = None
 
 # Import custom utilities (avoid conflicts with src/data)
@@ -129,7 +129,7 @@ try:
     
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
-    st.error(f"Import error: {e}")
+    st.info(f"🎭 **Demo Mode**: Some utilities not available - using fallback implementations")
     IMPORTS_SUCCESSFUL = False
     
     # Fallback functions
@@ -677,16 +677,26 @@ def display_metrics():
             y_true = input_data[true_col].dropna()
             y_pred = predictions[prop][:len(y_true)]
             
-            r2 = r2_score(y_true, y_pred)
-            rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-            mae = mean_absolute_error(y_true, y_pred)
-            
-            metrics_data.append({
-                'Property': prop,
-                'R²': f"{r2:.3f}",
-                'RMSE': f"{rmse:.3f}",
-                'MAE': f"{mae:.3f}"
-            })
+            # Only calculate metrics if we have enough samples
+            if len(y_true) >= 2:
+                r2 = r2_score(y_true, y_pred)
+                rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+                mae = mean_absolute_error(y_true, y_pred)
+                
+                metrics_data.append({
+                    'Property': prop,
+                    'R²': f"{r2:.3f}",
+                    'RMSE': f"{rmse:.3f}",
+                    'MAE': f"{mae:.3f}"
+                })
+            else:
+                # Not enough samples for meaningful metrics
+                metrics_data.append({
+                    'Property': prop,
+                    'R²': 'N/A',
+                    'RMSE': 'N/A', 
+                    'MAE': 'N/A'
+                })
     
     if metrics_data:
         metrics_df = pd.DataFrame(metrics_data)

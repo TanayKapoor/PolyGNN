@@ -17,7 +17,8 @@ try:
     from torch_geometric.data import Data, Batch
     TORCH_AVAILABLE = True
 except ImportError as e:
-    st.warning(f"⚠️ PyTorch not available: {e}")
+    # Use info instead of warning for better user experience in deployment
+    st.info("🎭 **Demo Mode**: PyTorch not available - using synthetic predictions for demonstration")
     TORCH_AVAILABLE = False
     torch = None
     nn = None
@@ -30,7 +31,8 @@ try:
     from rdkit.Chem import Descriptors, AllChem
     RDKIT_AVAILABLE = True
 except ImportError as e:
-    st.warning(f"⚠️ RDKit not available: {e}")
+    # Use info instead of warning for better user experience in deployment
+    st.info("🧪 **Demo Mode**: RDKit not available - molecular analysis disabled")
     RDKIT_AVAILABLE = False
     Chem = None
     Descriptors = None

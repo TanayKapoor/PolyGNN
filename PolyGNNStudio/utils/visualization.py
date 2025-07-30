@@ -22,9 +22,12 @@ def create_scatter_plot(y_true, y_pred, y_unc, property_name):
     Returns:
         plotly.graph_objects.Figure: Scatter plot figure
     """
-    # Calculate R² for perfect prediction line
+    # Calculate R² for perfect prediction line (only if enough samples)
     from sklearn.metrics import r2_score
-    r2 = r2_score(y_true, y_pred)
+    if len(y_true) >= 2:
+        r2 = r2_score(y_true, y_pred)
+    else:
+        r2 = float('nan')  # Not enough samples
     
     # Create figure
     fig = go.Figure()
@@ -66,8 +69,12 @@ def create_scatter_plot(y_true, y_pred, y_unc, property_name):
     units = {'Tg': '°C', 'Tm': '°C', 'Density': 'g/cm³'}
     unit = units.get(property_name, '')
     
+    # Format R² display
+    import numpy as np
+    r2_text = f"R² = {r2:.3f}" if not np.isnan(r2) else "R² = N/A (insufficient data)"
+    
     fig.update_layout(
-        title=f'{property_name} Predictions vs True Values (R² = {r2:.3f})',
+        title=f'{property_name} Predictions vs True Values ({r2_text})',
         xaxis_title=f'True {property_name} ({unit})',
         yaxis_title=f'Predicted {property_name} ({unit})',
         showlegend=True,
