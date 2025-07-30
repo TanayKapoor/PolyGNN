@@ -3,6 +3,11 @@ PolyGNN Showcase - Streamlit Application
 A showcase application for polymer property predictions using PolyGNN model.
 """
 
+import os
+# Set environment variables to avoid torch.classes issues
+os.environ["STREAMLIT_SERVER_FILE_WATCHER_TYPE"] = "none"
+os.environ["STREAMLIT_SERVER_RUN_ON_SAVE"] = "false"
+
 import streamlit as st
 
 # Page configuration MUST be first Streamlit command
@@ -23,9 +28,22 @@ import plotly.graph_objects as go
 from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 import io
 from PIL import Image
-import torch
-import torch_geometric
-from torch_geometric.data import Data, Batch
+# Import torch with error handling for classes module issue
+try:
+    import torch
+    # Prevent torch.classes introspection issues
+    if hasattr(torch, '_classes'):
+        del torch._classes
+except ImportError as e:
+    st.error(f"Failed to import PyTorch: {e}")
+    torch = None
+
+try:
+    import torch_geometric
+    from torch_geometric.data import Data, Batch
+except ImportError as e:
+    st.error(f"Failed to import PyTorch Geometric: {e}")
+    torch_geometric = None
 
 # Import custom utilities (avoid conflicts with src/data)
 try:
@@ -245,7 +263,7 @@ def single_smiles_input():
                     structure_img = render_smiles_structure(smiles_input, size=(350, 250))
                     
                     if structure_img:
-                        st.image(structure_img, caption="Extended polymer chain visualization", use_column_width=True)
+                        st.image(structure_img, caption="Extended polymer chain visualization", use_container_width=True)
                     else:
                         st.warning("Could not render 2D structure")
                         
