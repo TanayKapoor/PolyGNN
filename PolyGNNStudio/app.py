@@ -4,6 +4,15 @@ A showcase application for polymer property predictions using PolyGNN model.
 """
 
 import streamlit as st
+
+# Page configuration MUST be first Streamlit command
+st.set_page_config(
+    page_title="PolyGNN Showcase",
+    page_icon="🧪",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 import pandas as pd
 import numpy as np
 from rdkit import Chem
@@ -18,14 +27,22 @@ import torch
 import torch_geometric
 from torch_geometric.data import Data, Batch
 
-# Import custom utilities
+# Import custom utilities (avoid conflicts with src/data)
 try:
     from utils.data_processing import validate_smiles, process_csv_upload, render_smiles_structure
     from utils.model_utils import load_model, predict_ensemble, get_feature_importance
     from utils.visualization import (create_scatter_plot, create_histogram, create_shap_plot, create_sensitivity_plot,
                                     create_performance_metrics_table, create_shap_insights_plots, 
                                     create_uncertainty_robustness_plots, create_model_architecture_diagram)
-    from data.demo_polymers import get_demo_polymers, get_extended_demo_polymers
+    
+    # Import demo_polymers directly to avoid conflicts with src/data
+    import importlib.util
+    demo_spec = importlib.util.spec_from_file_location("demo_polymers", "data/demo_polymers.py")
+    demo_module = importlib.util.module_from_spec(demo_spec)
+    demo_spec.loader.exec_module(demo_module)
+    get_demo_polymers = demo_module.get_demo_polymers
+    get_extended_demo_polymers = demo_module.get_extended_demo_polymers
+    
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
     st.error(f"Import error: {e}")
@@ -59,7 +76,7 @@ except ImportError as e:
     def create_performance_metrics_table(*args):
         return pd.DataFrame({'Property': ['Tg'], 'R²': [0.85], 'RMSE': [10], 'MAE': [8], 'Sample Size': [100], 'Split': ['Test']})
     def create_shap_insights_plots(*args):
-        return go.Figure(), go.Figure(), {'features': ['test'], 'importance': [100]}
+        return go.Figure(), go.Figure(), {'features': ['chain_flexibility', 'molecular_weight', 'aromatic_content'], 'importance': [35.2, 28.1, 15.7]}
     def create_uncertainty_robustness_plots(*args):
         return go.Figure(), go.Figure(), [{'Noise Level': '0%', 'R² Score': 0.85}]
     def create_model_architecture_diagram(*args):
@@ -68,14 +85,6 @@ except ImportError as e:
         return go.Figure()
     def predict_with_feature_perturbation(*args):
         return {'Tg': [50], 'Tm': [150], 'Density': [1.2], 'unc': [10]}
-
-# Page configuration with dark theme default
-st.set_page_config(
-    page_title="PolyGNN Showcase",
-    page_icon="🧪",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Initialize session state
 if 'predictions' not in st.session_state:
@@ -88,7 +97,7 @@ if 'dark_theme' not in st.session_state:
 # Load model (cached)
 @st.cache_resource
 def get_model():
-    """Load the PolyGNN model (placeholder implementation)."""
+    """Load the PolyGNN model and return status info."""
     return load_model()
 
 def main():
@@ -158,12 +167,21 @@ def create_sidebar():
     
     # Model status
     st.sidebar.markdown("---")
-    model = get_model()
-    if model is None:
+    model_info = get_model()
+    if model_info is None or model_info.get('model') is None:
         st.sidebar.error("❌ Failed to load PolyGNN model")
+        if model_info and model_info.get('message'):
+            st.sidebar.caption(model_info['message'])
     else:
-        st.sidebar.success("✅ PolyGNN ensemble model loaded successfully")
-        st.sidebar.info("🧠 Real PyTorch/PyG integration active")
+        if model_info.get('status') == 'success':
+            st.sidebar.success("✅ PolyGNN model loaded successfully")
+            st.sidebar.info("🧠 Real PyTorch/PyG integration active")
+        elif model_info.get('status') == 'warning':
+            st.sidebar.warning("🔄 Using demonstration mode")
+            st.sidebar.caption(model_info.get('message', ''))
+        else:
+            st.sidebar.error("❌ Failed to load PolyGNN model")
+            st.sidebar.caption(model_info.get('message', ''))
 
 def input_tab():
     """Handle input data - single SMILES or CSV upload."""
@@ -431,7 +449,7 @@ def metrics_viz_tab():
             
             fig_hist = create_histogram(predictions[property_to_plot], property_to_plot)
             fig_hist.update_layout(template='plotly_dark')
-            st.plotly_chart(fig_hist, use_container_width=True)
+            st.plotly_chart(fig_hist, use_container_width=True, key="property_histogram")
         
         with viz_col2:
             # Enhanced uncertainty analysis
@@ -441,7 +459,7 @@ def metrics_viz_tab():
                 title="Prediction Uncertainty Distribution"
             )
             fig_unc.update_layout(showlegend=False, template='plotly_dark')
-            st.plotly_chart(fig_unc, use_container_width=True)
+            st.plotly_chart(fig_unc, use_container_width=True, key="uncertainty_box")
         
         # Scatter plots if true values available
         if has_true_values:
@@ -489,7 +507,7 @@ def metrics_viz_tab():
                 fig_sensitivity = create_sensitivity_plot(
                     predictions, perturbed_preds, selected_feature, perturbation
                 )
-                st.plotly_chart(fig_sensitivity, use_container_width=True)
+                st.plotly_chart(fig_sensitivity, use_container_width=True, key="sensitivity_analysis")
                 
                 # Show numerical changes
                 st.subheader("Sensitivity Summary")
@@ -513,7 +531,7 @@ def metrics_viz_tab():
         # Create enhanced SHAP plot
         fig_shap = create_shap_plot()
         fig_shap.update_layout(template='plotly_dark')
-        st.plotly_chart(fig_shap, use_container_width=True)
+        st.plotly_chart(fig_shap, use_container_width=True, key="shap_placeholder")
         
         # Model performance insights
         st.subheader("Model Performance Insights")
@@ -538,7 +556,7 @@ def metrics_viz_tab():
                 labels={'x': 'Confidence Score', 'count': 'Frequency'}
             )
             fig_confidence.update_layout(template='plotly_dark', showlegend=False)
-            st.plotly_chart(fig_confidence, use_container_width=True)
+            st.plotly_chart(fig_confidence, use_container_width=True, key="confidence_histogram")
 
 def display_metrics():
     """Display performance metrics when true values are available."""
@@ -590,7 +608,7 @@ def create_scatter_plots():
                 y_unc = predictions['unc'][:len(y_true)]
                 
                 fig = create_scatter_plot(y_true, y_pred, y_unc, prop)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"scatter_{prop.lower()}")
             else:
                 st.info(f"No true values available for {prop}")
 
@@ -774,7 +792,7 @@ def demo_examples_tab():
                     
                     fig_comparison = create_comparison_plot(results_df)
                     fig_comparison.update_layout(template='plotly_dark')
-                    st.plotly_chart(fig_comparison, use_container_width=True)
+                    st.plotly_chart(fig_comparison, use_container_width=True, key="polymer_comparison")
         
         else:
             st.info("👆 Select a polymer from the Polymer Library tab to see predictions and comparisons here")
@@ -823,28 +841,38 @@ def model_analysis_tab():
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.metric(
-                "Overall R² (External)", 
-                f"{external_metrics['R²'].mean():.3f}",
-                help="Average R² across all properties on external test set"
-            )
+            if not external_metrics.empty:
+                overall_r2 = external_metrics['R²'].mean()
+                st.metric(
+                    "Overall R² (External)", 
+                    f"{overall_r2:.3f}",
+                    help="Average R² across all properties on external test set"
+                )
+            else:
+                st.metric("Overall R² (External)", "N/A", help="No external test data available")
         
         with col2:
-            best_r2 = external_metrics['R²'].max()
-            best_prop = external_metrics.loc[external_metrics['R²'].idxmax(), 'Property']
-            st.metric(
-                f"Best Property ({best_prop})", 
-                f"{best_r2:.3f}",
-                help="Highest performing property on external test set"
-            )
+            if not external_metrics.empty:
+                best_r2 = external_metrics['R²'].max()
+                best_prop = external_metrics.loc[external_metrics['R²'].idxmax(), 'Property']
+                st.metric(
+                    f"Best Property ({best_prop})", 
+                    f"{best_r2:.3f}",
+                    help="Highest performing property on external test set"
+                )
+            else:
+                st.metric("Best Property", "N/A", help="No external test data available")
         
         with col3:
-            total_samples = external_metrics['Sample Size'].sum()
-            st.metric(
-                "Total Test Samples", 
-                f"{total_samples:,}",
-                help="Total number of samples in external test set"
-            )
+            if not external_metrics.empty:
+                total_samples = external_metrics['Sample Size'].sum()
+                st.metric(
+                    "Total Test Samples", 
+                    f"{total_samples:,}",
+                    help="Total number of samples in external test set"
+                )
+            else:
+                st.metric("Total Test Samples", "N/A", help="No external test data available")
         
         # Performance visualization
         st.markdown("### Performance Comparison")
@@ -859,7 +887,7 @@ def model_analysis_tab():
             color_continuous_scale='viridis'
         )
         comparison_fig.update_layout(template='plotly_dark', height=400)
-        st.plotly_chart(comparison_fig, use_container_width=True)
+        st.plotly_chart(comparison_fig, use_container_width=True, key="performance_comparison")
     
     with analysis_tab2:
         # SHAP Insights Section
@@ -874,19 +902,23 @@ def model_analysis_tab():
         
         # Display top 3 features as metrics
         top_3_cols = st.columns(3)
-        for i, col in enumerate(top_3_cols):
-            with col:
-                feature_name = feature_data['features'][i].replace('_', ' ').title()
-                importance = feature_data['importance'][i]
-                st.metric(
-                    f"#{i+1} {feature_name}",
-                    f"{importance:.1f}%",
-                    help=f"Contributes {importance:.1f}% to model predictions"
-                )
+        num_features = min(3, len(feature_data['features']))
+        for i in range(num_features):
+            with top_3_cols[i]:
+                if i < len(feature_data['features']) and i < len(feature_data['importance']):
+                    feature_name = feature_data['features'][i].replace('_', ' ').title()
+                    importance = feature_data['importance'][i]
+                    st.metric(
+                        f"#{i+1} {feature_name}",
+                        f"{importance:.1f}%",
+                        help=f"Contributes {importance:.1f}% to model predictions"
+                    )
+                else:
+                    st.metric(f"#{i+1} Feature", "N/A", help="Feature data not available")
         
         # Top 10 features bar chart
         st.markdown("### Feature Importance Ranking")
-        st.plotly_chart(top_features_fig, use_container_width=True)
+        st.plotly_chart(top_features_fig, use_container_width=True, key="top_features_bar")
         
         # SHAP beeswarm plot
         st.markdown("### Feature Impact Distribution (SHAP Values)")
@@ -896,28 +928,42 @@ def model_analysis_tab():
         - **Blue points**: Low feature values  
         - **X-axis**: Impact on prediction (positive = increases property value)
         """)
-        st.plotly_chart(beeswarm_fig, use_container_width=True)
+        st.plotly_chart(beeswarm_fig, use_container_width=True, key="shap_beeswarm")
         
         # Feature insights
         st.markdown("### Key Insights")
         col1, col2 = st.columns(2)
         
         with col1:
-            st.info(f"""
-            **Most Important Feature:** {feature_data['features'][0].replace('_', ' ').title()}
-            
-            This feature accounts for {feature_data['importance'][0]:.1f}% of the model's 
-            decision-making process, indicating its critical role in determining 
-            polymer properties.
-            """)
+            if len(feature_data['features']) > 0 and len(feature_data['importance']) > 0:
+                most_important = feature_data['features'][0].replace('_', ' ').title()
+                importance_val = feature_data['importance'][0]
+                st.info(f"""
+                **Most Important Feature:** {most_important}
+                
+                This feature accounts for {importance_val:.1f}% of the model's 
+                decision-making process, indicating its critical role in determining 
+                polymer properties.
+                """)
+            else:
+                st.info("**Most Important Feature:** Data not available")
         
         with col2:
-            st.info(f"""
-            **Feature Diversity:** Top 5 features contribute {sum(feature_data['importance'][:5]):.1f}%
-            
-            The model relies on a diverse set of molecular descriptors, 
-            showing good feature utilization and reduced overfitting risk.
-            """)
+            if len(feature_data['importance']) >= 5:
+                top_5_sum = sum(feature_data['importance'][:5])
+                st.info(f"""
+                **Feature Diversity:** Top 5 features contribute {top_5_sum:.1f}%
+                
+                The model relies on a diverse set of molecular descriptors, 
+                showing good feature utilization and reduced overfitting risk.
+                """)
+            else:
+                total_importance = sum(feature_data['importance']) if feature_data['importance'] else 0
+                st.info(f"""
+                **Feature Diversity:** Available features contribute {total_importance:.1f}%
+                
+                The model relies on molecular descriptors for predictions.
+                """)
     
     with analysis_tab3:
         # UQ & Robustness Section
@@ -932,7 +978,7 @@ def model_analysis_tab():
         
         with uq_col1:
             st.markdown("### Uncertainty Coverage")
-            st.plotly_chart(coverage_fig, use_container_width=True)
+            st.plotly_chart(coverage_fig, use_container_width=True, key="coverage_pie")
             
             st.success("""
             **95% Confidence Interval Coverage: 94.7%**
@@ -943,7 +989,7 @@ def model_analysis_tab():
         
         with uq_col2:
             st.markdown("### Robustness to Input Noise")
-            st.plotly_chart(robustness_fig, use_container_width=True)
+            st.plotly_chart(robustness_fig, use_container_width=True, key="robustness_line")
             
             st.warning("""
             **Noise Sensitivity Analysis**
@@ -1034,7 +1080,7 @@ def model_analysis_tab():
         with st.spinner("Rendering model architecture..."):
             arch_fig = create_model_architecture_diagram()
         
-        st.plotly_chart(arch_fig, use_container_width=True)
+        st.plotly_chart(arch_fig, use_container_width=True, key="model_architecture")
         
         # Model performance summary
         st.markdown("### Performance Summary")

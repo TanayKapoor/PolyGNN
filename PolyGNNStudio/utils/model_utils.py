@@ -15,17 +15,23 @@ import sys
 import os
 from typing import Dict, Any, List, Optional
 
-# Add src to path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '../..', 'src'))
-
+# Import PolyGNN integration
 try:
-    from models.polymer_gcn import PolymerGCN
-    from data.molecular_graph import MolecularGraphConverter
-    from features.polymer_features import calculate_comprehensive_features
-    IMPORTS_AVAILABLE = True
-except ImportError:
-    # Fallback if imports fail
-    print("Warning: Could not import PolyGNN modules. Using placeholder implementation.")
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from polygnn_integration import (
+        POLYGNN_AVAILABLE, 
+        get_polymer_features, 
+        create_molecular_graph, 
+        load_trained_model,
+        predict_properties
+    )
+    IMPORTS_AVAILABLE = POLYGNN_AVAILABLE
+    if POLYGNN_AVAILABLE:
+        print("✅ PolyGNN integration successful")
+    else:
+        print("⚠️ Using fallback implementation")
+except ImportError as e:
+    print(f"Warning: Could not import PolyGNN integration. Error: {e}")
     IMPORTS_AVAILABLE = False
 
 # Real integration—remove dummy
@@ -100,37 +106,38 @@ class SimplePolymerModel(nn.Module):
 @st.cache_resource
 def load_model():
     """
-    Load the real PolyGNN ensemble model.
+    Load the real PolyGNN model.
     
     Returns:
-        EnsembleGCN: Loaded ensemble model or None if loading fails
+        Dictionary with model status and instance, or None if loading fails
     """
-    # Real integration—remove dummy
-    device = torch.device('cpu')  # CPU fallback for Streamlit deployment
-    
-    try:
-        # Try to load actual model weights
-        model_path = os.path.join(os.path.dirname(__file__), '../..', 'models', 'best_ensemble.pth')
-        
-        if os.path.exists(model_path):
-            # Load real trained model
-            ensemble = EnsembleGCN()
-            state_dict = torch.load(model_path, map_location=device)
-            ensemble.load_state_dict(state_dict)
-            ensemble.eval()
-            ensemble.to(device)
-            return ensemble
-        else:
-            # Create untrained model for demonstration
-            st.warning("🔄 Model weights not found. Using untrained model for demonstration.")
-            ensemble = EnsembleGCN()
-            ensemble.eval()
-            ensemble.to(device)
-            return ensemble
-            
-    except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-        return None
+    if IMPORTS_AVAILABLE:
+        try:
+            model = load_trained_model()
+            if model is not None:
+                return {
+                    'model': model,
+                    'status': 'success',
+                    'message': '✅ PolyGNN model loaded successfully!'
+                }
+            else:
+                return {
+                    'model': 'untrained_model',
+                    'status': 'warning',
+                    'message': '🔄 Using untrained PolyGNN model for demonstration.'
+                }
+        except Exception as e:
+            return {
+                'model': None,
+                'status': 'error',
+                'message': f'Error loading PolyGNN model: {str(e)}'
+            }
+    else:
+        return {
+            'model': None,
+            'status': 'warning',
+            'message': '⚠️ PolyGNN modules not available. Using fallback implementation.'
+        }
 
 def calc_poly_feats(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -160,7 +167,9 @@ def calc_poly_feats(df: pd.DataFrame) -> pd.DataFrame:
         for smiles in df['SMILES']:
             try:
                 # Use real comprehensive feature calculation
-                features = calculate_comprehensive_features(smiles)
+                feature_tensor = extract_polymer_features(smiles)
+                # Convert tensor to dictionary format
+                features = {f'feature_{i}': float(feature_tensor[i]) for i in range(len(feature_tensor))}
                 features_list.append(features)
             except Exception as e:
                 st.warning(f"Feature calculation failed for {smiles}: {str(e)}")
@@ -281,67 +290,17 @@ def predict_ensemble(input_data: pd.DataFrame) -> Dict[str, np.ndarray]:
     Returns:
         Dictionary containing prediction arrays for Tg, Tm, Density, and uncertainty
     """
-    # Real integration—remove dummy
-    model = load_model()
-    if model is None:
-        return generate_fallback_predictions(input_data)
-    
-    try:
-        # Calculate polymer features
-        with st.spinner("Calculating polymer features..."):
-            features_df = calc_poly_feats(input_data)
-        
-        # Convert to PyG graphs
-        graphs = []
-        with st.spinner("Converting SMILES to molecular graphs..."):
-            for idx, row in features_df.iterrows():
-                smiles = row['SMILES']
-                # Extract feature values (excluding SMILES and other non-feature columns)
-                feature_cols = [col for col in features_df.columns 
-                              if col not in ['SMILES', 'Tg_true', 'Tm_true', 'Density_true']]
-                features = {col: row[col] for col in feature_cols[:147]}  # Take first 147 features
-                
-                graph = smiles_to_pyg_graph(smiles, features)
-                if graph is not None:
-                    graphs.append(graph)
-                else:
-                    # Create fallback graph
-                    graphs.append(create_fallback_graph(smiles, features))
-        
-        if not graphs:
+    if IMPORTS_AVAILABLE:
+        try:
+            # Use real PolyGNN predictions
+            smiles_list = input_data['SMILES'].tolist()
+            predictions = predict_properties(smiles_list)
+            st.success("✅ Real PolyGNN predictions generated!")
+            return predictions
+        except Exception as e:
+            st.warning(f"Real model prediction failed: {str(e)}")
             return generate_fallback_predictions(input_data)
-        
-        # Create batch
-        batch = Batch.from_data_list(graphs)
-        
-        # Model forward pass for ensemble predictions
-        model.eval()
-        with torch.no_grad():
-            ensemble_preds = model(batch)  # [num_models, batch_size, 3]
-            
-        # Get uncertainty from ensemble variance
-        mean_preds = ensemble_preds.mean(dim=0)  # [batch_size, 3]
-        var_preds = ensemble_preds.var(dim=0)    # [batch_size, 3]
-        
-        # Convert to numpy
-        mean_preds = mean_preds.cpu().numpy()
-        uncertainties = torch.sqrt(var_preds).cpu().numpy()
-        
-        # Extract individual properties
-        predictions = {
-            'Tg': mean_preds[:, 0],
-            'Tm': mean_preds[:, 1], 
-            'Density': mean_preds[:, 2],
-            'unc_Tg': uncertainties[:, 0],
-            'unc_Tm': uncertainties[:, 1],
-            'unc_Density': uncertainties[:, 2],
-            'unc': uncertainties.mean(axis=1)  # Average uncertainty
-        }
-        
-        return predictions
-        
-    except Exception as e:
-        st.error(f"Prediction error: {str(e)}")
+    else:
         return generate_fallback_predictions(input_data)
 
 def generate_fallback_predictions(input_data: pd.DataFrame) -> Dict[str, np.ndarray]:
