@@ -6,54 +6,81 @@ Handles model loading and prediction functionality with real PyTorch/PyG integra
 import numpy as np
 import pandas as pd
 import streamlit as st
-import torch
-import torch.nn as nn
-from torch_geometric.data import Data, Batch
-from rdkit import Chem
-from rdkit.Chem import Descriptors, AllChem
 import sys
 import os
 from typing import Dict, Any, List, Optional
 
+# Import PyTorch with error handling
+try:
+    import torch
+    import torch.nn as nn
+    from torch_geometric.data import Data, Batch
+    TORCH_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"⚠️ PyTorch not available: {e}")
+    TORCH_AVAILABLE = False
+    torch = None
+    nn = None
+    Data = None
+    Batch = None
+
+# Import RDKit with error handling  
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors, AllChem
+    RDKIT_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"⚠️ RDKit not available: {e}")
+    RDKIT_AVAILABLE = False
+    Chem = None
+    Descriptors = None
+    AllChem = None
+
 # Import PolyGNN integration
 try:
-    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-    from polygnn_integration import (
-        POLYGNN_AVAILABLE, 
-        get_polymer_features, 
-        create_molecular_graph, 
-        load_trained_model,
-        predict_properties
-    )
-    IMPORTS_AVAILABLE = POLYGNN_AVAILABLE
-    if POLYGNN_AVAILABLE:
-        print("✅ PolyGNN integration successful")
+    if TORCH_AVAILABLE:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+        from polygnn_integration import (
+            POLYGNN_AVAILABLE, 
+            get_polymer_features, 
+            create_molecular_graph, 
+            load_trained_model,
+            predict_properties
+        )
+        IMPORTS_AVAILABLE = POLYGNN_AVAILABLE
+        if POLYGNN_AVAILABLE:
+            print("✅ PolyGNN integration successful")
+        else:
+            print("⚠️ Using fallback implementation")
     else:
-        print("⚠️ Using fallback implementation")
+        IMPORTS_AVAILABLE = False
+        print("⚠️ PyTorch unavailable - using demo mode")
 except ImportError as e:
     print(f"Warning: Could not import PolyGNN integration. Error: {e}")
     IMPORTS_AVAILABLE = False
 
-# Real integration—remove dummy
-class EnsembleGCN(nn.Module):
-    """Ensemble of 3-layer GCN models for multi-task prediction with uncertainty quantification."""
-    
-    def __init__(self, num_models=5, node_feature_dim=157, hidden_dims=[256, 128, 64], 
-                 num_outputs=3, dropout_rate=0.2):
-        super().__init__()
-        self.num_models = num_models
-        self.models = nn.ModuleList([
-            create_single_gcn_model(node_feature_dim, hidden_dims, num_outputs, dropout_rate)
-            for _ in range(num_models)
-        ])
+# Model classes (only available when PyTorch is available)
+if TORCH_AVAILABLE:
+    # Real integration—remove dummy
+    class EnsembleGCN(nn.Module):
+        """Ensemble of 3-layer GCN models for multi-task prediction with uncertainty quantification."""
         
-    def forward(self, data):
-        """Forward pass through ensemble."""
-        predictions = []
-        for model in self.models:
-            pred = model(data)
-            predictions.append(pred)
-        return torch.stack(predictions)  # [num_models, batch_size, num_outputs]
+        def __init__(self, num_models=5, node_feature_dim=157, hidden_dims=[256, 128, 64], 
+                     num_outputs=3, dropout_rate=0.2):
+            super().__init__()
+            self.num_models = num_models
+            self.models = nn.ModuleList([
+                create_single_gcn_model(node_feature_dim, hidden_dims, num_outputs, dropout_rate)
+                for _ in range(num_models)
+            ])
+            
+        def forward(self, data):
+            """Forward pass through ensemble."""
+            predictions = []
+            for model in self.models:
+                pred = model(data)
+                predictions.append(pred)
+            return torch.stack(predictions)  # [num_models, batch_size, num_outputs]
 
 def create_single_gcn_model(node_feature_dim, hidden_dims, num_outputs, dropout_rate):
     """Create a single GCN model for the ensemble."""
@@ -106,11 +133,18 @@ class SimplePolymerModel(nn.Module):
 @st.cache_resource
 def load_model():
     """
-    Load the real PolyGNN model.
+    Load the real PolyGNN model or provide demo mode fallback.
     
     Returns:
-        Dictionary with model status and instance, or None if loading fails
+        Dictionary with model status and instance, or demo mode fallback
     """
+    if not TORCH_AVAILABLE:
+        return {
+            'model': 'demo_mode',
+            'status': 'warning', 
+            'message': '🎭 Demo Mode: PyTorch unavailable - using synthetic predictions for demonstration'
+        }
+    
     if IMPORTS_AVAILABLE:
         try:
             model = load_trained_model()
@@ -122,19 +156,19 @@ def load_model():
                 }
             else:
                 return {
-                    'model': 'untrained_model',
+                    'model': 'demo_mode',
                     'status': 'warning',
-                    'message': '🔄 Using untrained PolyGNN model for demonstration.'
+                    'message': '🎭 Demo Mode: Model file unavailable - using synthetic predictions'
                 }
         except Exception as e:
             return {
-                'model': None,
-                'status': 'error',
-                'message': f'Error loading PolyGNN model: {str(e)}'
+                'model': 'demo_mode',
+                'status': 'warning',
+                'message': f'🎭 Demo Mode: {str(e)} - using synthetic predictions'
             }
     else:
         return {
-            'model': None,
+            'model': 'demo_mode',
             'status': 'warning',
             'message': '⚠️ PolyGNN modules not available. Using fallback implementation.'
         }
@@ -282,7 +316,7 @@ def create_fallback_graph(smiles: str, features: Optional[Dict] = None) -> Data:
 
 def predict_ensemble(input_data: pd.DataFrame) -> Dict[str, np.ndarray]:
     """
-    Generate real ensemble predictions using PyTorch/PyG for multi-task Tg/Tm/Density output with UQ.
+    Generate ensemble predictions using PyTorch/PyG or demo mode fallback.
     
     Args:
         input_data: DataFrame containing SMILES column
@@ -290,6 +324,10 @@ def predict_ensemble(input_data: pd.DataFrame) -> Dict[str, np.ndarray]:
     Returns:
         Dictionary containing prediction arrays for Tg, Tm, Density, and uncertainty
     """
+    if not TORCH_AVAILABLE:
+        st.info("🎭 Demo Mode: Generating synthetic predictions (PyTorch unavailable)")
+        return generate_demo_predictions(input_data)
+    
     if IMPORTS_AVAILABLE:
         try:
             # Use real PolyGNN predictions
@@ -298,36 +336,66 @@ def predict_ensemble(input_data: pd.DataFrame) -> Dict[str, np.ndarray]:
             st.success("✅ Real PolyGNN predictions generated!")
             return predictions
         except Exception as e:
-            st.warning(f"Real model prediction failed: {str(e)}")
-            return generate_fallback_predictions(input_data)
+            st.warning(f"Real model prediction failed: {str(e)} - using demo mode")
+            return generate_demo_predictions(input_data)
     else:
-        return generate_fallback_predictions(input_data)
+        st.info("🎭 Demo Mode: Model unavailable - generating synthetic predictions")
+        return generate_demo_predictions(input_data)
 
-def generate_fallback_predictions(input_data: pd.DataFrame) -> Dict[str, np.ndarray]:
-    """Generate fallback predictions when real model fails."""
+def generate_demo_predictions(input_data: pd.DataFrame) -> Dict[str, np.ndarray]:
+    """Generate realistic demo predictions for demonstration purposes."""
     n_samples = len(input_data)
     
     # Set random seed for reproducible demo results
     np.random.seed(42)
     
-    # Generate realistic-looking polymer property predictions
-    tg_predictions = np.random.normal(50, 80, n_samples)
-    tg_predictions = np.clip(tg_predictions, -150, 300)
+    # Generate realistic-looking polymer property predictions based on SMILES patterns
+    predictions = []
     
-    tm_predictions = tg_predictions + np.random.normal(100, 50, n_samples)
-    tm_predictions = np.clip(tm_predictions, -50, 400)
+    for idx, row in input_data.iterrows():
+        smiles = row['SMILES'] if 'SMILES' in row else "*CC*"
+        
+        # Generate predictions based on SMILES characteristics
+        if 'C=C' in smiles or 'c' in smiles:  # Aromatic or double bonds
+            tg_base = np.random.normal(80, 40)  # Higher Tg for aromatic
+        elif 'O' in smiles:  # Oxygen containing
+            tg_base = np.random.normal(60, 35)
+        else:  # Aliphatic
+            tg_base = np.random.normal(20, 50)
+        
+        tg = np.clip(tg_base, -150, 300)
+        tm = tg + np.random.normal(80, 40)
+        tm = np.clip(tm, -50, 400)
+        
+        # Density based on SMILES characteristics
+        if 'F' in smiles or 'Cl' in smiles:  # Halogenated
+            density = np.random.normal(1.6, 0.2)
+        elif 'c' in smiles:  # Aromatic
+            density = np.random.normal(1.3, 0.15)
+        else:
+            density = np.random.normal(1.1, 0.2)
+        
+        density = np.clip(density, 0.8, 2.5)
+        
+        predictions.append({
+            'Tg': tg,
+            'Tm': tm,
+            'Density': density
+        })
     
-    density_predictions = np.random.normal(1.2, 0.3, n_samples)
-    density_predictions = np.clip(density_predictions, 0.8, 2.5)
+    # Convert to arrays
+    tg_predictions = np.array([p['Tg'] for p in predictions])
+    tm_predictions = np.array([p['Tm'] for p in predictions])
+    density_predictions = np.array([p['Density'] for p in predictions])
     
-    # Uncertainty estimates
-    tg_uncertainty = np.abs(tg_predictions) * np.random.uniform(0.05, 0.25, n_samples)
-    tm_uncertainty = np.abs(tm_predictions) * np.random.uniform(0.05, 0.25, n_samples)
-    density_uncertainty = density_predictions * np.random.uniform(0.02, 0.15, n_samples)
+    # Uncertainty estimates (realistic for demo)
+    tg_uncertainty = np.abs(tg_predictions) * np.random.uniform(0.08, 0.20, n_samples)
+    tm_uncertainty = np.abs(tm_predictions) * np.random.uniform(0.06, 0.18, n_samples)
+    density_uncertainty = density_predictions * np.random.uniform(0.03, 0.12, n_samples)
     
     avg_uncertainty = (tg_uncertainty + tm_uncertainty + density_uncertainty) / 3
     
-    predictions = {
+    result = {
         'Tg': tg_predictions,
         'Tm': tm_predictions, 
         'Density': density_predictions,
@@ -337,7 +405,7 @@ def generate_fallback_predictions(input_data: pd.DataFrame) -> Dict[str, np.ndar
         'unc': avg_uncertainty
     }
     
-    return predictions
+    return result
 
 def get_uncertainty(predictions_list):
     """

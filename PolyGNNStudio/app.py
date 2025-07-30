@@ -148,7 +148,13 @@ def main():
     # Title and header
     st.title("🧪 PolyGNN Showcase")
     st.markdown("**Advanced Polymer Property Predictions with Graph Neural Networks**")
-    st.success("🚀 **Real PyTorch/PyG Integration Active** - Using authentic PolyGNN ensemble model")
+    
+    # Check model status and display appropriate message
+    model_info = get_model()
+    if model_info and model_info.get('model') == 'demo_mode':
+        st.info("🎭 **Demo Mode Active** - Using synthetic predictions for demonstration (PyTorch/model unavailable)")
+    else:
+        st.success("🚀 **Real PyTorch/PyG Integration Active** - Using authentic PolyGNN ensemble model")
     st.markdown("---")
     
     # Sidebar
@@ -218,6 +224,10 @@ def create_sidebar():
         if model_info.get('status') == 'success':
             st.sidebar.success("✅ PolyGNN model loaded successfully")
             st.sidebar.info("🧠 Real PyTorch/PyG integration active")
+        elif model_info.get('model') == 'demo_mode':
+            st.sidebar.info("🎭 Demo Mode Active")
+            st.sidebar.caption(model_info.get('message', 'Using synthetic predictions'))
+            st.sidebar.markdown("**Note:** All predictions are demonstrations and not from the actual trained model.")
         elif model_info.get('status') == 'warning':
             st.sidebar.warning("🔄 Using demonstration mode")
             st.sidebar.caption(model_info.get('message', ''))
