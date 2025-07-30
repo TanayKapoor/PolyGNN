@@ -3,7 +3,8 @@
 [global]
 # Development settings
 developmentMode = false
-dataFrameSerialization = "legacy"
+# Suppress deprecation warnings
+suppressDeprecationWarnings = true
 
 [server]
 headless = true
@@ -13,6 +14,9 @@ enableCORS = false
 enableXsrfProtection = false
 maxUploadSize = 200
 maxMessageSize = 200
+# Disable file watcher to avoid torch.classes introspection issues
+fileWatcherType = "none"
+runOnSave = false
 
 [browser]
 gatherUsageStats = false
