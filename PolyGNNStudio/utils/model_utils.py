@@ -82,53 +82,59 @@ if TORCH_AVAILABLE:
                 predictions.append(pred)
             return torch.stack(predictions)  # [num_models, batch_size, num_outputs]
 
-def create_single_gcn_model(node_feature_dim, hidden_dims, num_outputs, dropout_rate):
-    """Create a single GCN model for the ensemble."""
-    if IMPORTS_AVAILABLE:
-        return PolymerGCN(
-            node_feature_dim=node_feature_dim,
-            hidden_dims=hidden_dims + [num_outputs],  # Multi-task: Tg, Tm, Density
-            num_gcn_layers=3,
-            dropout_rate=dropout_rate,
-            use_polymer_features=True,
-            polymer_feature_dim=147  # Full feature set
-        )
-    else:
-        # Fallback simple model
-        return SimplePolymerModel(node_feature_dim, hidden_dims, num_outputs)
-
-class SimplePolymerModel(nn.Module):
-    """Simple fallback model when PolyGNN imports are not available."""
-    
-    def __init__(self, input_dim, hidden_dims, output_dim):
-        super().__init__()
-        layers = []
-        prev_dim = input_dim
-        for hidden_dim in hidden_dims:
-            layers.extend([
-                nn.Linear(prev_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Dropout(0.2)
-            ])
-            prev_dim = hidden_dim
-        layers.append(nn.Linear(prev_dim, output_dim))
-        self.model = nn.Sequential(*layers)
-        
-    def forward(self, data):
-        # Simple fallback - use mean pooling of node features
-        if hasattr(data, 'x') and hasattr(data, 'batch'):
-            x = data.x
-            batch = data.batch
-            # Simple mean aggregation by batch
-            batch_size = int(batch.max()) + 1
-            pooled = torch.zeros(batch_size, x.size(1))
-            for i in range(batch_size):
-                mask = batch == i
-                if mask.sum() > 0:
-                    pooled[i] = x[mask].mean(0)
-            return self.model(pooled)
+    def create_single_gcn_model(node_feature_dim, hidden_dims, num_outputs, dropout_rate):
+        """Create a single GCN model for the ensemble."""
+        if IMPORTS_AVAILABLE:
+            return PolymerGCN(
+                node_feature_dim=node_feature_dim,
+                hidden_dims=hidden_dims + [num_outputs],  # Multi-task: Tg, Tm, Density
+                num_gcn_layers=3,
+                dropout_rate=dropout_rate,
+                use_polymer_features=True,
+                polymer_feature_dim=147  # Full feature set
+            )
         else:
-            return self.model(data)
+            # Fallback simple model
+            return SimplePolymerModel(node_feature_dim, hidden_dims, num_outputs)
+
+    class SimplePolymerModel(nn.Module):
+        """Simple fallback model when PolyGNN imports are not available."""
+        
+        def __init__(self, input_dim, hidden_dims, output_dim):
+            super().__init__()
+            layers = []
+            prev_dim = input_dim
+            for hidden_dim in hidden_dims:
+                layers.extend([
+                    nn.Linear(prev_dim, hidden_dim),
+                    nn.ReLU(),
+                    nn.Dropout(0.2)
+                ])
+                prev_dim = hidden_dim
+            layers.append(nn.Linear(prev_dim, output_dim))
+            self.model = nn.Sequential(*layers)
+            
+        def forward(self, data):
+            # Simple fallback - use mean pooling of node features
+            if hasattr(data, 'x') and hasattr(data, 'batch'):
+                x = data.x
+                batch = data.batch
+                # Simple mean aggregation by batch
+                batch_size = int(batch.max()) + 1
+                pooled = torch.zeros(batch_size, x.size(1))
+                for i in range(batch_size):
+                    mask = batch == i
+                    if mask.sum() > 0:
+                        pooled[i] = x[mask].mean(0)
+                return self.model(pooled)
+            else:
+                return self.model(data)
+
+else:
+    # Define placeholder functions when PyTorch is not available
+    def create_single_gcn_model(*args, **kwargs):
+        """Placeholder function when PyTorch is unavailable."""
+        return None
 
 @st.cache_resource
 def load_model():

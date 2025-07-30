@@ -27,10 +27,11 @@ The app gracefully handles missing dependencies:
 
 ### Error Handling
 
-All critical imports are wrapped in try-catch blocks:
-- `torch` and `torch_geometric` → Demo mode
-- `rdkit` → Structure visualization disabled
-- Model loading → Synthetic predictions
+All critical imports and PyTorch-dependent code are wrapped in conditional blocks:
+- `torch` and `torch_geometric` → Demo mode with synthetic predictions
+- `nn.Module` classes → Only defined when PyTorch available, preventing AttributeError
+- `rdkit` → Structure visualization disabled gracefully
+- Model loading → Automatic fallback to demo mode
 
 ### Demo Mode Features
 
