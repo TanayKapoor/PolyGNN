@@ -77,13 +77,55 @@ try:
                                     create_performance_metrics_table, create_shap_insights_plots, 
                                     create_uncertainty_robustness_plots, create_model_architecture_diagram)
     
-    # Import demo_polymers directly to avoid conflicts with src/data
-    import importlib.util
-    demo_spec = importlib.util.spec_from_file_location("demo_polymers", "data/demo_polymers.py")
-    demo_module = importlib.util.module_from_spec(demo_spec)
-    demo_spec.loader.exec_module(demo_module)
-    get_demo_polymers = demo_module.get_demo_polymers
-    get_extended_demo_polymers = demo_module.get_extended_demo_polymers
+    # Import demo_polymers with fallback
+    try:
+        import importlib.util
+        import os
+        
+        # Try different possible paths
+        possible_paths = [
+            "data/demo_polymers.py",
+            "PolyGNNStudio/data/demo_polymers.py",
+            os.path.join(os.path.dirname(__file__), "data", "demo_polymers.py")
+        ]
+        
+        demo_module = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                demo_spec = importlib.util.spec_from_file_location("demo_polymers", path)
+                demo_module = importlib.util.module_from_spec(demo_spec)
+                demo_spec.loader.exec_module(demo_module)
+                break
+        
+        if demo_module:
+            get_demo_polymers = demo_module.get_demo_polymers
+            get_extended_demo_polymers = demo_module.get_extended_demo_polymers
+        else:
+            raise ImportError("demo_polymers.py not found in any expected location")
+            
+    except Exception as e:
+        st.warning(f"Could not load demo_polymers.py: {e} - using fallback data")
+        # Fallback demo data
+        def get_demo_polymers():
+            return [
+                {'Name': 'Polyethylene', 'SMILES': '*CC*', 'Tg_experimental': -120, 'Tm_experimental': 135, 'Density_experimental': 0.95},
+                {'Name': 'Polystyrene', 'SMILES': '*CC(c1ccccc1)*', 'Tg_experimental': 100, 'Tm_experimental': 240, 'Density_experimental': 1.05},
+                {'Name': 'Polyvinyl Chloride', 'SMILES': '*CC(Cl)*', 'Tg_experimental': 80, 'Tm_experimental': 212, 'Density_experimental': 1.38}
+            ]
+        
+        def get_extended_demo_polymers():
+            return [
+                {'Name': 'Polyethylene', 'SMILES': '*CC*', 'Tg_experimental': -120, 'Tm_experimental': 135, 'Density_experimental': 0.95},
+                {'Name': 'Polystyrene', 'SMILES': '*CC(c1ccccc1)*', 'Tg_experimental': 100, 'Tm_experimental': 240, 'Density_experimental': 1.05},
+                {'Name': 'Polyvinyl Chloride', 'SMILES': '*CC(Cl)*', 'Tg_experimental': 80, 'Tm_experimental': 212, 'Density_experimental': 1.38},
+                {'Name': 'Polymethyl Methacrylate', 'SMILES': '*CC(C)(C(=O)OC)*', 'Tg_experimental': 105, 'Tm_experimental': 160, 'Density_experimental': 1.18},
+                {'Name': 'Polyethylene Terephthalate', 'SMILES': '*OCCOC(=O)c1ccc(C(=O))cc1*', 'Tg_experimental': 70, 'Tm_experimental': 255, 'Density_experimental': 1.38},
+                {'Name': 'Polypropylene', 'SMILES': '*CC(C)*', 'Tg_experimental': -10, 'Tm_experimental': 165, 'Density_experimental': 0.90},
+                {'Name': 'Polyvinyl Alcohol', 'SMILES': '*CC(O)*', 'Tg_experimental': 85, 'Tm_experimental': 200, 'Density_experimental': 1.30},
+                {'Name': 'Polytetrafluoroethylene', 'SMILES': '*C(F)(F)C(F)(F)*', 'Tg_experimental': 115, 'Tm_experimental': 327, 'Density_experimental': 2.20},
+                {'Name': 'Polyacrylonitrile', 'SMILES': '*CC(C#N)*', 'Tg_experimental': 90, 'Tm_experimental': 320, 'Density_experimental': 1.17},
+                {'Name': 'Polyoxymethylene', 'SMILES': '*CO*', 'Tg_experimental': -85, 'Tm_experimental': 175, 'Density_experimental': 1.41}
+            ]
     
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
