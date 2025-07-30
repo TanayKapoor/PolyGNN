@@ -1,0 +1,27 @@
+{
+  "name": "polygnn-showcase",
+  "version": "1.0.0",
+  "description": "PolyGNN Streamlit Showcase Application",
+  "main": "app.py",
+  "scripts": {
+    "start": "streamlit run app.py --server.port=$PORT --server.address=0.0.0.0",
+    "dev": "streamlit run app.py",
+    "install": "pip install -r requirements.txt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/PolyGNN"
+  },
+  "keywords": [
+    "polymer",
+    "machine-learning",
+    "graph-neural-networks",
+    "materials-science",
+    "streamlit"
+  ],
+  "author": "PolyGNN Team",
+  "license": "MIT",
+  "engines": {
+    "python": ">=3.9"
+  }
+}
