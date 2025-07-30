@@ -1,0 +1,44 @@
+# Docker ignore file for PolyGNN Showcase
+
+# Version control
+.git
+.gitignore
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Documentation
+*.md
+!README.md
+
+# Development files
+.vscode/
+.idea/
+*.tmp
+*.temp
+
+# Local environment
+.env
+.venv
+venv/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Development and testing
+test_*.py
+*_test.py
+
+# Large unnecessary files (keep only essentials)
+../data/raw/*
+../data/processed/*
+../results/hpo/hpo_*/trial_*
+../analysis/
+../notebooks/

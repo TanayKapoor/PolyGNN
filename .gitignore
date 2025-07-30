@@ -139,7 +139,7 @@ dmypy.json
 *.pth
 *.ckpt
 
-# Data files (keep structure, ignore content)
+# Data files (keep structure, ignore content)  
 data/raw/*
 data/processed/*
 data/external/*
@@ -154,6 +154,14 @@ results/*
 models/*
 !results/.gitkeep
 !models/.gitkeep
+
+# Streamlit deployment exceptions - include necessary files for app
+!PolyGNNStudio/
+!PolyGNNStudio/**
+!results/final_optimized_model.pth
+!results/hpo/hpo_20250721_074803/best_model.pth
+!src/
+!src/**
 
 # Temporary files
 *.tmp
