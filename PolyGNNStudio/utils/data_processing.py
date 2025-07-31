@@ -54,7 +54,7 @@ except ImportError:
     Descriptors = None
     Draw = None
     Compute2DCoords = None
-    st.info("🧪 **Demo Mode**: Chemistry libraries not available")
+    st.info("🧪 **Structure Visualization**: Using text-based fallback rendering")
 
 def validate_smiles(smiles):
     """
