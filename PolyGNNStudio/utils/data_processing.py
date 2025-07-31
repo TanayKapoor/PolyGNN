@@ -260,13 +260,22 @@ def render_smiles_structure(smiles, size=(400, 300), repeats=3):
     Returns:
         PIL.Image: Rendered molecular structure or fallback visualization
     """
-    if not RDKIT_DRAW_AVAILABLE:
-        # Try fallback visualization
-        fallback_img = create_structure_fallback(smiles, size)
-        if fallback_img is None:
-            # Create ultimate fallback if even matplotlib fails
-            return create_simple_text_image(smiles, size)
-        return fallback_img
+    # Debug: Always use fallback for now to test if it's working
+    try:
+        # Try the simple text image first to ensure it works
+        return create_simple_text_image(smiles, size)
+    except Exception as e:
+        st.error(f"Error in create_simple_text_image: {str(e)}")
+        return None
+    
+    # Original logic (commented out for debugging)
+    # if not RDKIT_DRAW_AVAILABLE:
+    #     # Try fallback visualization
+    #     fallback_img = create_structure_fallback(smiles, size)
+    #     if fallback_img is None:
+    #         # Create ultimate fallback if even matplotlib fails
+    #         return create_simple_text_image(smiles, size)
+    #     return fallback_img
     
     try:
         # Handle polymer SMILES with repeat units
@@ -389,7 +398,12 @@ def create_simple_text_image(smiles, size=(400, 300)):
         PIL.Image: Simple text-based image
     """
     try:
-        from PIL import Image, ImageDraw, ImageFont
+        # Debug: Check if PIL is available
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+        except ImportError as e:
+            st.error(f"PIL import error: {str(e)}")
+            return None
         
         # Create a white image
         img = Image.new('RGB', size, color='white')
