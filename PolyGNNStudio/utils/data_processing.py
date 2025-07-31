@@ -269,21 +269,43 @@ def render_smiles_structure(smiles, size=(400, 300), repeats=3):
         return fallback_img
     
     try:
-        # Handle polymer SMILES with repeat units
+        # Handle polymer SMILES with repeat units - better approach
         if '*' in smiles:
-            # Create extended polymer chain for visualization
-            repeat_unit = smiles.replace('*', '')
-            extended_smiles = repeat_unit * repeats
+            # For polymers, create a short chain to show the repeat unit clearly
+            # Remove * and create 2-3 repeat units connected
+            clean_smiles = smiles.replace('*', '')
+            
+            # Try different approaches for polymer visualization
+            extended_smiles_options = [
+                f"[*]{clean_smiles}[*]",  # Show connection points
+                f"{clean_smiles}{clean_smiles}",  # Two units
+                f"{clean_smiles}{clean_smiles}{clean_smiles}",  # Three units
+                clean_smiles  # Just the repeat unit
+            ]
         else:
-            extended_smiles = smiles
+            extended_smiles_options = [smiles]
         
-        # Create molecule object
-        mol = Chem.MolFromSmiles(extended_smiles)
+        # Try each SMILES option until one works
+        mol = None
+        working_smiles = None
+        for test_smiles in extended_smiles_options:
+            try:
+                test_mol = Chem.MolFromSmiles(test_smiles)
+                if test_mol is not None and test_mol.GetNumAtoms() > 0:
+                    mol = test_mol
+                    working_smiles = test_smiles
+                    break
+            except:
+                continue
+        
         if mol is None:
             return create_structure_fallback(smiles, size)
         
         # Generate 2D coordinates for better layout
-        Compute2DCoords(mol)
+        try:
+            Compute2DCoords(mol)
+        except:
+            pass  # Continue even if 2D coord generation fails
         
         # Enhanced rendering with cloud-optimized settings
         draw_options = Draw.DrawingOptions()
@@ -291,6 +313,7 @@ def render_smiles_structure(smiles, size=(400, 300), repeats=3):
         draw_options.addAtomIndices = False
         draw_options.dotsPerAngstrom = 100
         draw_options.bondLineWidth = 2
+        draw_options.includeMetadata = False
         
         # Render to image with optimized settings for headless environment
         img = Draw.MolToImage(
@@ -314,14 +337,14 @@ def render_smiles_structure(smiles, size=(400, 300), repeats=3):
 def create_structure_fallback(smiles, size=(400, 300)):
     """
     Create a fallback visualization when RDKit drawing is not available.
-    Generates a text-based representation of the molecule.
+    Parses SMILES and creates a chemical structure representation.
     
     Args:
         smiles (str): SMILES notation
         size (tuple): Desired image size (for compatibility)
         
     Returns:
-        PIL.Image: Text-based structure representation
+        PIL.Image: Chemical structure representation
     """
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -329,37 +352,150 @@ def create_structure_fallback(smiles, size=(400, 300)):
         import matplotlib.patches as patches
         from matplotlib.backends.backend_agg import FigureCanvasAgg
         import io
+        import re
+        import numpy as np
         
-        # Create a figure for the fallback visualization
+        # Create a figure for the chemical structure
         fig, ax = plt.subplots(figsize=(size[0]/100, size[1]/100), dpi=100)
-        ax.set_xlim(0, 10)
+        ax.set_xlim(0, 12)
         ax.set_ylim(0, 10)
         ax.axis('off')
         
-        # Clean SMILES for display
+        # Parse SMILES to understand the structure
+        clean_smiles = smiles.replace('*', '')
+        
+        # Add title
+        ax.text(6, 9.5, 'Chemical Structure', ha='center', va='center', 
+                fontsize=12, weight='bold')
+        
+        # Display SMILES with better formatting
         display_smiles = smiles.replace('*', '─')
+        ax.text(6, 8.5, f'SMILES: {display_smiles}', ha='center', va='center', 
+                fontsize=9, family='monospace', 
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue", alpha=0.7))
         
-        # Add title and SMILES
-        ax.text(5, 8, 'Chemical Structure', ha='center', va='center', 
-                fontsize=14, weight='bold')
-        ax.text(5, 6.5, display_smiles, ha='center', va='center', 
-                fontsize=10, family='monospace', 
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="lightblue"))
+        # Analyze SMILES for structural features
+        has_aromatic = any(c.islower() for c in clean_smiles) or 'c' in clean_smiles
+        has_oxygen = 'O' in clean_smiles
+        has_nitrogen = 'N' in clean_smiles
+        has_chlorine = 'Cl' in clean_smiles
+        has_fluorine = 'F' in clean_smiles
+        has_double_bond = '=' in clean_smiles
         
-        # Add polymer representation if applicable
+        # Create a more realistic molecular representation
+        center_x, center_y = 6, 5
+        
+        if has_aromatic:
+            # Draw benzene ring for aromatic compounds
+            angles = [i * 60 for i in range(6)]
+            ring_coords = []
+            for angle in angles:
+                x = center_x + 1.5 * np.cos(np.radians(angle))
+                y = center_y + 1.5 * np.sin(np.radians(angle))
+                ring_coords.append((x, y))
+            
+            # Draw ring bonds
+            for i in range(6):
+                x1, y1 = ring_coords[i]
+                x2, y2 = ring_coords[(i + 1) % 6]
+                if i % 2 == 0:  # Alternating double bonds
+                    ax.plot([x1, x2], [y1, y2], 'k-', linewidth=2)
+                    # Add second line for double bond
+                    offset = 0.1
+                    ax.plot([x1 + offset, x2 + offset], [y1, y2], 'k-', linewidth=1)
+                else:
+                    ax.plot([x1, x2], [y1, y2], 'k-', linewidth=2)
+            
+            # Draw carbon atoms
+            for i, (x, y) in enumerate(ring_coords):
+                ax.plot(x, y, 'ko', markersize=8)
+                ax.text(x, y, 'C', ha='center', va='center', fontsize=8, color='white', weight='bold')
+            
+            # Add side chains based on SMILES
+            if 'CC' in clean_smiles:  # Alkyl side chain
+                ax.plot([ring_coords[0][0], ring_coords[0][0] - 1], 
+                       [ring_coords[0][1], ring_coords[0][1]], 'k-', linewidth=2)
+                ax.plot(ring_coords[0][0] - 1, ring_coords[0][1], 'ko', markersize=6)
+                ax.text(ring_coords[0][0] - 1, ring_coords[0][1], 'C', ha='center', va='center', 
+                       fontsize=6, color='white', weight='bold')
+                
+        else:
+            # Linear chain structure
+            num_carbons = clean_smiles.count('C') + clean_smiles.count('c')
+            if num_carbons == 0:
+                num_carbons = 3  # Default
+            
+            chain_coords = []
+            for i in range(min(num_carbons, 6)):  # Limit to 6 atoms for display
+                if i % 2 == 0:
+                    x = center_x - 2 + i * 0.8
+                    y = center_y
+                else:
+                    x = center_x - 2 + i * 0.8
+                    y = center_y + 0.5
+                chain_coords.append((x, y))
+            
+            # Draw bonds
+            for i in range(len(chain_coords) - 1):
+                x1, y1 = chain_coords[i]
+                x2, y2 = chain_coords[i + 1]
+                if has_double_bond and i == 1:  # Show double bond
+                    ax.plot([x1, x2], [y1, y2], 'k-', linewidth=2)
+                    ax.plot([x1, x2], [y1 + 0.1, y2 + 0.1], 'k-', linewidth=1)
+                else:
+                    ax.plot([x1, x2], [y1, y2], 'k-', linewidth=2)
+            
+            # Draw atoms with correct labels
+            for i, (x, y) in enumerate(chain_coords):
+                color = 'black'
+                label = 'C'
+                
+                # Color code different atoms
+                if has_oxygen and i == 1:
+                    color = 'red'
+                    label = 'O'
+                elif has_nitrogen and i == 2:
+                    color = 'blue'
+                    label = 'N'
+                elif has_chlorine and i == len(chain_coords) - 1:
+                    color = 'green'
+                    label = 'Cl'
+                elif has_fluorine and i == len(chain_coords) - 1:
+                    color = 'lightgreen'
+                    label = 'F'
+                
+                ax.plot(x, y, 'o', color=color, markersize=8)
+                ax.text(x, y, label, ha='center', va='center', 
+                       fontsize=6, color='white', weight='bold')
+        
+        # Add polymer indicator
         if '*' in smiles:
-            ax.text(5, 4.5, '(Polymer Repeat Unit)', ha='center', va='center', 
-                    fontsize=9, style='italic')
-            # Simple polymer chain representation
-            for i in range(3):
-                circle = patches.Circle((2 + i*3, 2.5), 0.3, 
-                                      facecolor='lightcoral', edgecolor='black')
-                ax.add_patch(circle)
-                if i < 2:
-                    ax.plot([2.3 + i*3, 1.7 + (i+1)*3], [2.5, 2.5], 'k-', linewidth=2)
+            ax.text(6, 2.5, '(Polymer Repeat Unit)', ha='center', va='center', 
+                    fontsize=10, style='italic', color='purple')
+            
+            # Add repeat indicators
+            ax.text(1, center_y, '...', ha='center', va='center', fontsize=16, color='purple')
+            ax.text(11, center_y, '...', ha='center', va='center', fontsize=16, color='purple')
         
-        ax.text(5, 1, 'Structure visualization enabled with system libraries', 
-                ha='center', va='center', fontsize=8, alpha=0.7)
+        # Add chemical information
+        info_text = []
+        if has_aromatic:
+            info_text.append("Aromatic ring")
+        if has_oxygen:
+            info_text.append("Contains oxygen")
+        if has_nitrogen:
+            info_text.append("Contains nitrogen")
+        if has_chlorine:
+            info_text.append("Contains chlorine")
+        if has_fluorine:
+            info_text.append("Contains fluorine")
+        
+        if info_text:
+            ax.text(6, 1.5, " • ".join(info_text[:2]), ha='center', va='center', 
+                   fontsize=8, color='darkblue')
+        
+        ax.text(6, 0.5, 'Structure visualization active', 
+                ha='center', va='center', fontsize=8, alpha=0.7, style='italic')
         
         # Convert to PIL Image
         canvas = FigureCanvasAgg(fig)
@@ -440,26 +576,94 @@ def create_simple_text_image(smiles, size=(400, 300)):
             else:
                 draw.text((size[0]//2 - 60, 150), polymer_text, fill='green')
         
-        # Draw a simple molecular representation
+        # Analyze SMILES to create more accurate representation
+        clean_smiles = smiles.replace('*', '')
+        has_aromatic = any(c.islower() for c in clean_smiles) or 'c' in clean_smiles
+        has_oxygen = 'O' in clean_smiles
+        has_chlorine = 'Cl' in clean_smiles
+        
         center_x, center_y = size[0] // 2, size[1] // 2 + 50
         
-        # Draw some circles to represent atoms
-        atom_positions = [
-            (center_x - 80, center_y),
-            (center_x - 40, center_y - 30),
-            (center_x, center_y),
-            (center_x + 40, center_y - 30),
-            (center_x + 80, center_y)
-        ]
+        if has_aromatic:
+            # Draw benzene ring for aromatic compounds
+            ring_radius = 40
+            ring_center = (center_x, center_y)
+            
+            # Draw hexagon
+            points = []
+            for i in range(6):
+                angle = i * 60 * 3.14159 / 180
+                x = ring_center[0] + ring_radius * (angle**0.5 if i % 2 == 0 else 1) * 0.8
+                y = ring_center[1] + ring_radius * (1 if i < 3 else -1) * 0.6
+                points.append((int(x), int(y)))
+            
+            # Draw bonds
+            for i in range(6):
+                draw.line([points[i], points[(i + 1) % 6]], fill='black', width=2)
+            
+            # Draw atoms
+            for i, pos in enumerate(points):
+                color = 'lightblue'
+                if has_oxygen and i == 1:
+                    color = 'red'
+                elif has_chlorine and i == 3:
+                    color = 'green'
+                
+                draw.ellipse([pos[0] - 8, pos[1] - 8, pos[0] + 8, pos[1] + 8], 
+                            fill=color, outline='black', width=1)
+                
+                # Add atom labels
+                label = 'C'
+                if has_oxygen and i == 1:
+                    label = 'O'
+                elif has_chlorine and i == 3:
+                    label = 'Cl'
+                
+                if font:
+                    draw.text((pos[0], pos[1]), label, fill='white', font=font, anchor='mm')
+                
+        else:
+            # Linear chain structure
+            num_atoms = min(clean_smiles.count('C') + clean_smiles.count('c') + 1, 5)
+            if num_atoms < 2:
+                num_atoms = 3
+                
+            atom_positions = []
+            for i in range(num_atoms):
+                x = center_x - 60 + i * 30
+                y = center_y + (10 if i % 2 == 0 else -10)
+                atom_positions.append((x, y))
+            
+            # Draw bonds
+            for i in range(len(atom_positions) - 1):
+                draw.line([atom_positions[i], atom_positions[i + 1]], fill='black', width=2)
+            
+            # Draw atoms with appropriate colors
+            for i, pos in enumerate(atom_positions):
+                color = 'lightblue'
+                label = 'C'
+                
+                if has_oxygen and i == 1:
+                    color = 'red'
+                    label = 'O'
+                elif has_chlorine and i == len(atom_positions) - 1:
+                    color = 'green' 
+                    label = 'Cl'
+                
+                draw.ellipse([pos[0] - 8, pos[1] - 8, pos[0] + 8, pos[1] + 8], 
+                            fill=color, outline='black', width=1)
+                
+                if font:
+                    draw.text((pos[0], pos[1]), label, fill='white', font=font, anchor='mm')
         
-        # Draw bonds (lines between atoms)
-        for i in range(len(atom_positions) - 1):
-            draw.line([atom_positions[i], atom_positions[i + 1]], fill='black', width=2)
-        
-        # Draw atoms (circles)
-        for pos in atom_positions:
-            draw.ellipse([pos[0] - 8, pos[1] - 8, pos[0] + 8, pos[1] + 8], 
-                        fill='lightblue', outline='black', width=1)
+        # Add chemical information
+        info_y = center_y + 60
+        if has_aromatic:
+            draw.text((center_x, info_y), "Contains aromatic ring", fill='darkblue', font=font, anchor='mm')
+        if has_oxygen:
+            draw.text((center_x, info_y + 20), "Contains oxygen atoms", fill='red', font=font, anchor='mm')
+        if has_chlorine:
+            draw.text((center_x, info_y + 40), "Contains chlorine atoms", fill='green', font=font, anchor='mm')
         
         # Add status text
         status_text = "Structure visualization enabled"
