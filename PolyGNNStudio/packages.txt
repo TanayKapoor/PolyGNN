@@ -1,10 +1,39 @@
 # System packages needed for RDKit on Streamlit Cloud
 # This helps avoid X11/rendering library issues in headless environment
 
-# Essential libraries for chemical rendering (optional - app handles gracefully if missing)
+# Core X11 libraries for RDKit drawing functionality
 libxrender1
+libxrender-dev
 libxext6
+libx11-6
+libx11-dev
+libxau6
+libxdmcp6
+libxcb1
+
+# Additional rendering libraries
 libsm6
 libxrandr2
 libfontconfig1
 libxss1
+
+# Graphics and font support
+libfreetype6
+libfreetype6-dev
+libpng16-16
+libcairo2
+libcairo2-dev
+libpango-1.0-0
+libpangocairo-1.0-0
+fonts-dejavu-core
+
+# Development headers that might be needed
+libx11-xcb1
+libxcomposite1
+libxcursor1
+libxdamage1
+libxfixes3
+libxi6
+libxinerama1
+libxrandr2
+libxtst6
