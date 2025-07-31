@@ -38,8 +38,6 @@ try:
         from rdkit.Chem.rdDepictor import Compute2DCoords
         RDKIT_DRAW_AVAILABLE = True
     except ImportError as e:
-        if "libXrender" in str(e) or "libX" in str(e):
-            st.info("🖼️ **Demo Mode**: Structure visualization disabled in cloud deployment")
         RDKIT_DRAW_AVAILABLE = False
         Draw = None
         Compute2DCoords = None
